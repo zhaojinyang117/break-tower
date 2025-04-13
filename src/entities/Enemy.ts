@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import gameConfig from '../config/gameConfig';
+import { gameConfig } from '../config/gameConfig';
 
 // 敌人意图类型
 export enum IntentType {
@@ -18,7 +18,7 @@ interface Intent {
 
 export default class Enemy {
     private scene: Phaser.Scene;
-    private sprite: Phaser.GameObjects.Sprite;
+    public sprite: Phaser.GameObjects.Sprite;
 
     private maxHp: number;
     private currentHp: number;
@@ -82,6 +82,25 @@ export default class Enemy {
     // 获得格挡
     gainBlock(amount: number): void {
         this.block += amount;
+        this.updateUI();
+    }
+
+    // 回复生命值
+    heal(amount: number): void {
+        this.currentHp = Math.min(this.maxHp, this.currentHp + amount);
+        this.updateUI();
+    }
+
+    // 更新最大生命值
+    updateMaxHp(amount: number): void {
+        this.maxHp = Math.max(1, this.maxHp + amount);
+
+        // 如果当前生命值超过新的最大值，将其调整为最大值
+        if (this.currentHp > this.maxHp) {
+            this.currentHp = this.maxHp;
+        }
+
+        // 更新UI
         this.updateUI();
     }
 

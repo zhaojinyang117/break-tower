@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import Player from '../entities/Player';
 import Enemy from '../entities/Enemy';
-import DeckManager from './DeckManager';
+import DeckManager, { Card } from './DeckManager';
 import EffectManager from './EffectManager';
-import gameConfig from '../config/gameConfig';
+import { gameConfig } from '../config/gameConfig';
 
 // 回合状态枚举
 export enum TurnState {
@@ -25,6 +25,9 @@ export default class TurnManager {
     // UI元素
     private turnText!: Phaser.GameObjects.Text;
     private endTurnButton!: Phaser.GameObjects.Container;
+
+    // 战斗结束回调
+    private battleEndCallbacks: Array<(isVictory: boolean) => void> = [];
 
     constructor(scene: Phaser.Scene, player: Player, enemy: Enemy, deckManager: DeckManager) {
         this.scene = scene;
@@ -238,5 +241,38 @@ export default class TurnManager {
 
         // 检查战斗是否结束
         this.checkBattleEnd();
+    }
+
+    // 处理战斗结束
+    private handleBattleEnd(isVictory: boolean): void {
+        console.log(`战斗结束，${isVictory ? '胜利' : '失败'}`);
+
+        // 禁用交互
+        this.endTurnButton.disableInteractive();
+        this.endTurnButton.setAlpha(0.5);
+        this.deckManager.disableCardInteraction();
+
+        // 通知所有订阅者战斗结束
+        this.notifyBattleEnd(isVictory);
+    }
+
+    // 注册战斗结束回调
+    public onBattleEnd(callback: (isVictory: boolean) => void): void {
+        this.battleEndCallbacks.push(callback);
+    }
+
+    // 移除战斗结束回调
+    public offBattleEnd(callback: (isVictory: boolean) => void): void {
+        const index = this.battleEndCallbacks.indexOf(callback);
+        if (index !== -1) {
+            this.battleEndCallbacks.splice(index, 1);
+        }
+    }
+
+    // 通知所有战斗结束回调
+    private notifyBattleEnd(isVictory: boolean): void {
+        for (const callback of this.battleEndCallbacks) {
+            callback(isVictory);
+        }
     }
 } 

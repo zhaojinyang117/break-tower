@@ -1,3 +1,4 @@
+// 导出配置项
 export const gameConfig = {
     // 游戏窗口大小
     WIDTH: 1280,

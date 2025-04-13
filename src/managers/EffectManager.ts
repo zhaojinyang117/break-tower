@@ -1,36 +1,49 @@
+import Phaser from 'phaser';
 import { CardEffect, EffectType } from '../config/cardData';
 import Player from '../entities/Player';
 import Enemy from '../entities/Enemy';
 
 export default class EffectManager {
-    // 处理卡牌效果执行
-    executeCardEffects(effects: CardEffect[], source: Player, target: Enemy | Player | Enemy[]): void {
-        // 遍历所有效果并执行
-        effects.forEach(effect => {
+    constructor() {
+        // 初始化
+    }
+
+    // 执行卡牌效果
+    executeCardEffects(effects: any[], source: Player, target: Enemy | Player): void {
+        if (!effects || effects.length === 0) return;
+
+        // 处理每个效果
+        for (const effect of effects) {
             this.executeEffect(effect, source, target);
-        });
+        }
     }
 
     // 执行单个效果
-    private executeEffect(effect: CardEffect, source: Player, target: Enemy | Player | Enemy[]): void {
-        switch (effect.type) {
-            case EffectType.DAMAGE:
-                this.executeDamageEffect(effect.value, target);
+    private executeEffect(effect: any, source: Player, target: Enemy | Player): void {
+        const type = effect.type;
+        const value = effect.value || 0;
+
+        switch (type) {
+            case 'damage':
+                // 造成伤害
+                if (target instanceof Enemy) {
+                    target.takeDamage(value);
+                }
                 break;
-            case EffectType.BLOCK:
-                this.executeBlockEffect(effect.value, source);
+            case 'block':
+                // 获得格挡
+                source.gainBlock(value);
                 break;
-            case EffectType.DRAW:
-                this.executeDrawEffect(effect.value);
+            case 'heal':
+                // 回复生命值
+                source.heal(value);
                 break;
-            case EffectType.ENERGY:
-                this.executeEnergyEffect(effect.value, source);
-                break;
-            case EffectType.HEAL:
-                this.executeHealEffect(effect.value, source);
+            case 'draw':
+                // 抽牌
+                // 这里需要和DeckManager配合
                 break;
             default:
-                console.warn(`未实现的效果类型: ${effect.type}`);
+                console.log(`未知效果类型: ${type}`);
         }
     }
 

@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import gameConfig from '../config/gameConfig';
+import { gameConfig } from '../config/gameConfig';
 
 export default class Player {
     private scene: Phaser.Scene;
-    private sprite: Phaser.GameObjects.Sprite;
+    public sprite: Phaser.GameObjects.Sprite;
 
     private maxHp: number;
     private currentHp: number;
@@ -18,7 +18,13 @@ export default class Player {
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
         this.scene = scene;
-        this.sprite = scene.add.sprite(x, y, 'player');
+
+        // 使用player_placeholder纹理（由BootScene中的SVG生成）
+        const textureKey = scene.textures.exists('player_placeholder')
+            ? 'player_placeholder'
+            : 'player';
+
+        this.sprite = scene.add.sprite(x, y, textureKey);
 
         // 初始化属性
         this.maxHp = gameConfig.PLAYER.STARTING_HP;
@@ -136,6 +142,19 @@ export default class Player {
 
     getMaxHp(): number {
         return this.maxHp;
+    }
+
+    // 更新最大生命值
+    updateMaxHp(amount: number): void {
+        this.maxHp = Math.max(1, this.maxHp + amount);
+
+        // 如果当前生命值超过新的最大值，将其调整为最大值
+        if (this.currentHp > this.maxHp) {
+            this.currentHp = this.maxHp;
+        }
+
+        // 更新UI
+        this.updateUI();
     }
 
     getEnergy(): number {

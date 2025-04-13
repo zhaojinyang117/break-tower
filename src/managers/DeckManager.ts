@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CardData, BASE_CARDS } from '../config/cardData';
-import gameConfig from '../config/gameConfig';
+import { gameConfig } from '../config/gameConfig';
 
 // 卡牌类（游戏中的可交互卡牌对象）
 export class Card extends Phaser.GameObjects.Container {
@@ -14,8 +14,40 @@ export class Card extends Phaser.GameObjects.Container {
         super(scene, x, y);
         this.cardData = cardData;
 
+        // 选择纹理 - 根据卡牌类型和消耗选择
+        let textureKey = 'card'; // 默认纹理
+
+        // 尝试使用特定类型和消耗的纹理
+        if (cardData.type && cardData.cost !== undefined) {
+            const specificKey = `card_${cardData.type.toLowerCase()}_${cardData.cost}`;
+            if (scene.textures.exists(specificKey)) {
+                textureKey = specificKey;
+            } else {
+                // 尝试使用类型纹理
+                const typeKey = `card_${cardData.type.toLowerCase()}`;
+                if (scene.textures.exists(typeKey)) {
+                    textureKey = typeKey;
+                } else {
+                    // 尝试使用本地化的纹理
+                    const localizedTypes: { [key: string]: string } = {
+                        'attack': '攻击',
+                        'defend': '防御',
+                        'skill': '技能',
+                        'power': '能力'
+                    };
+
+                    const localized = localizedTypes[cardData.type.toLowerCase()];
+                    if (localized && scene.textures.exists(`card_${localized}`)) {
+                        textureKey = `card_${localized}`;
+                    }
+                }
+            }
+        }
+
+        console.log(`Card: 创建卡牌 ${cardData.name}，使用纹理 ${textureKey}`);
+
         // 创建卡牌背景
-        this.background = scene.add.image(0, 0, 'card');
+        this.background = scene.add.image(0, 0, textureKey);
         this.background.setDisplaySize(gameConfig.CARD.WIDTH, gameConfig.CARD.HEIGHT);
         this.add(this.background);
 
@@ -49,6 +81,18 @@ export class Card extends Phaser.GameObjects.Container {
     getCardData(): CardData {
         return this.cardData;
     }
+}
+
+/**
+ * 卡牌数据接口（与 CardData 区分开）
+ */
+export interface CardInterface {
+    id: string;
+    type: string;
+    name: string;
+    cost: number;
+    description: string;
+    effects: any[];
 }
 
 // 卡牌管理器
@@ -160,8 +204,8 @@ export default class DeckManager {
     }
 
     // 打出卡牌
-    playCard(card: Card, target?: any): boolean {
-        // 检查能量是否足够
+    playCard(card: Card): boolean {
+        // 获取卡牌数据
         const cardData = card.getCardData();
 
         // 从手牌中移除卡牌
@@ -211,5 +255,155 @@ export default class DeckManager {
     // 获取手牌数组
     getHand(): Card[] {
         return this.hand;
+    }
+
+    /**
+     * 设置牌组
+     * @param cards 卡牌数组
+     */
+    setDeck(cards: CardData[]): void {
+        this.drawPile = [...cards];
+        this.shuffleDrawPile();
+    }
+
+    /**
+     * 获取所有卡牌（包括抽牌堆、弃牌堆和手牌）
+     * @returns 所有卡牌数组
+     */
+    getAllCards(): CardData[] {
+        const allCards: CardData[] = [];
+
+        // 添加抽牌堆中的卡牌
+        allCards.push(...this.drawPile);
+
+        // 添加弃牌堆中的卡牌
+        allCards.push(...this.discardPile);
+
+        // 添加手牌中的卡牌
+        for (const cardSprite of this.hand) {
+            const cardData = cardSprite.getCardData();
+            if (cardData) {
+                allCards.push(cardData);
+            }
+        }
+
+        return allCards;
+    }
+
+    /**
+     * 禁用所有手牌的交互
+     */
+    disableCardInteraction(): void {
+        for (const cardSprite of this.hand) {
+            cardSprite.disableInteractive();
+            cardSprite.setAlpha(0.7); // 视觉上的禁用提示
+        }
+    }
+
+    /**
+     * 创建卡牌精灵
+     * @param cardData 卡牌数据
+     * @returns 卡牌精灵
+     */
+    private createCardSprite(cardData: CardData): Phaser.GameObjects.Sprite {
+        const x = gameConfig.WIDTH / 2;
+        const y = gameConfig.HEIGHT + 100; // 开始在屏幕外
+
+        // 选择基于卡牌类型和能量消耗的纹理
+        let textureKey = 'card'; // 默认纹理
+
+        // 尝试使用针对特定类型和能量消耗的纹理
+        if (cardData.type && cardData.cost !== undefined) {
+            const specificTextureKey = `card_${cardData.type.toLowerCase()}_${cardData.cost}`;
+            if (this.scene.textures.exists(specificTextureKey)) {
+                textureKey = specificTextureKey;
+            } else {
+                // 尝试使用针对特定类型的纹理
+                const typeTextureKey = `card_${cardData.type.toLowerCase()}`;
+                if (this.scene.textures.exists(typeTextureKey)) {
+                    textureKey = typeTextureKey;
+                } else {
+                    // 尝试使用4种基本类型的通用纹理
+                    const genericTypeMap: { [key: string]: string } = {
+                        'attack': '攻击',
+                        'defend': '防御',
+                        'skill': '技能',
+                        'power': '能力'
+                    };
+
+                    const localized = genericTypeMap[cardData.type.toLowerCase()];
+                    if (localized && this.scene.textures.exists(`card_${localized}`)) {
+                        textureKey = `card_${localized}`;
+                    }
+                }
+            }
+        }
+
+        console.log(`DeckManager: 创建卡牌 ${cardData.name}，使用纹理 ${textureKey}`);
+
+        // 创建精灵
+        const sprite = this.scene.add.sprite(x, y, textureKey);
+
+        // 设置精灵尺寸
+        sprite.setDisplaySize(gameConfig.CARD.WIDTH, gameConfig.CARD.HEIGHT);
+
+        // 添加卡牌名称和描述文本
+        this.addCardText(sprite, cardData);
+
+        // 设置为可交互
+        sprite.setInteractive();
+
+        // 添加拖动行为
+        this.scene.input.setDraggable(sprite);
+
+        return sprite;
+    }
+
+    /**
+     * 添加卡牌文本
+     * @param sprite 卡牌精灵
+     * @param cardData 卡牌数据
+     */
+    private addCardText(sprite: Phaser.GameObjects.Sprite, cardData: CardData): void {
+        // 卡牌名称
+        const nameText = this.scene.add.text(0, -gameConfig.CARD.HEIGHT / 2 + 20, cardData.name, {
+            fontSize: '16px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // 能量消耗
+        const costText = this.scene.add.text(-gameConfig.CARD.WIDTH / 2 + 15, -gameConfig.CARD.HEIGHT / 2 + 15, cardData.cost.toString(), {
+            fontSize: '20px',
+            color: '#ffff00',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // 卡牌描述
+        const descriptionText = this.scene.add.text(0, 10, cardData.description, {
+            fontSize: '12px',
+            color: '#ffffff',
+            wordWrap: { width: gameConfig.CARD.WIDTH - 20 },
+            align: 'center'
+        }).setOrigin(0.5);
+
+        // 创建容器
+        const container = this.scene.add.container(sprite.x, sprite.y, [nameText, costText, descriptionText]);
+
+        // 将容器与精灵关联
+        sprite.setData('textContainer', container);
+
+        // 修改精灵的拖动逻辑，同时移动文本容器
+        sprite.on('dragstart', () => {
+            // 保存初始位置
+            sprite.setData('startPosition', { x: sprite.x, y: sprite.y });
+        });
+
+        sprite.on('drag', (pointer: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+            sprite.x = dragX;
+            sprite.y = dragY;
+            container.x = dragX;
+            container.y = dragY;
+        });
     }
 } 
