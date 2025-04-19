@@ -24,11 +24,13 @@ export default class Enemy {
     private currentHp: number;
     private block: number;
     private currentIntent: Intent;
+    private isSelected: boolean = false;
 
     // UI元素
     private hpText!: Phaser.GameObjects.Text;
     private blockText!: Phaser.GameObjects.Text;
     private intentText!: Phaser.GameObjects.Text;
+    private selectionIndicator!: Phaser.GameObjects.Graphics;
 
     constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string = 'enemy') {
         this.scene = scene;
@@ -48,6 +50,12 @@ export default class Enemy {
         // 创建UI显示
         this.createUI();
 
+        // 创建选择指示器
+        this.createSelectionIndicator();
+
+        // 设置交互性
+        this.setupInteraction();
+
         // 设置下一次意图
         this.setNextIntent();
     }
@@ -59,6 +67,11 @@ export default class Enemy {
 
     // 受到伤害
     takeDamage(amount: number): number {
+        // 如果已经死亡，不再受到伤害
+        if (this.isDead()) {
+            return 0;
+        }
+
         // 如果有格挡，先减少格挡值
         if (this.block > 0) {
             if (this.block >= amount) {
@@ -77,6 +90,11 @@ export default class Enemy {
 
         // 更新UI
         this.updateUI();
+
+        // 如果敌人死亡，添加死亡效果
+        if (this.isDead()) {
+            this.onDeath();
+        }
 
         // 返回实际造成的伤害
         return amount;
@@ -184,6 +202,46 @@ export default class Enemy {
         }).setOrigin(0.5);
     }
 
+    // 创建选择指示器
+    private createSelectionIndicator(): void {
+        // 创建选择指示器
+        this.selectionIndicator = this.scene.add.graphics();
+
+        // 设置初始状态为隐藏
+        this.updateSelectionIndicator();
+    }
+
+    // 设置敌人交互
+    private setupInteraction(): void {
+        // 使敌人可交互
+        this.sprite.setInteractive();
+
+        // 添加点击事件
+        this.sprite.on('pointerdown', () => {
+            // 如果敌人已经死亡，不处理点击
+            if (this.isDead()) return;
+
+            // 触发选择事件
+            if (this.scene.events) {
+                this.scene.events.emit('enemySelected', this);
+            }
+        });
+
+        // 添加悬停效果
+        this.sprite.on('pointerover', () => {
+            // 如果敌人已经死亡，不处理悬停
+            if (this.isDead()) return;
+
+            // 添加悬停效果
+            this.sprite.setTint(0xaaaaaa);
+        });
+
+        this.sprite.on('pointerout', () => {
+            // 移除悬停效果
+            this.sprite.clearTint();
+        });
+    }
+
     // 更新UI元素
     private updateUI(): void {
         this.hpText.setText(`生命: ${this.currentHp}/${this.maxHp}`);
@@ -204,6 +262,42 @@ export default class Enemy {
                 return `意图: 减益`;
             default:
                 return `意图: 未知`;
+        }
+    }
+
+    // 设置敌人选中状态
+    setSelected(selected: boolean): void {
+        if (this.isSelected === selected) return;
+
+        this.isSelected = selected;
+        this.updateSelectionIndicator();
+    }
+
+    // 更新选择指示器
+    private updateSelectionIndicator(): void {
+        this.selectionIndicator.clear();
+
+        if (this.isSelected && !this.isDead()) {
+            // 绘制选中指示器（一个圆形轮廓）
+            const x = this.sprite.x;
+            const y = this.sprite.y;
+            const radius = Math.max(this.sprite.width, this.sprite.height) / 2 + 10;
+
+            this.selectionIndicator.lineStyle(3, 0xffff00, 1);
+            this.selectionIndicator.strokeCircle(x, y, radius);
+
+            // 添加闪烁动画
+            this.scene.tweens.add({
+                targets: this.selectionIndicator,
+                alpha: 0.5,
+                duration: 500,
+                yoyo: true,
+                repeat: -1
+            });
+        } else {
+            // 停止所有选中指示器的动画
+            this.scene.tweens.killTweensOf(this.selectionIndicator);
+            this.selectionIndicator.setAlpha(1);
         }
     }
 
@@ -250,6 +344,29 @@ export default class Enemy {
     // 判断是否死亡
     isDead(): boolean {
         return this.currentHp <= 0;
+    }
+
+    // 敌人死亡时的处理
+    onDeath(): void {
+        console.log(`敌人 ${this.getId()} 死亡`);
+
+        // 添加死亡动画
+        this.scene.tweens.add({
+            targets: this.sprite,
+            alpha: 0.3,
+            y: this.sprite.y + 20,
+            angle: 90,
+            duration: 500,
+            ease: 'Power2'
+        });
+
+        // 禁用交互
+        this.sprite.disableInteractive();
+
+        // 隐藏UI元素
+        if (this.intentText) {
+            this.intentText.setVisible(false);
+        }
     }
 
     // 获取唯一ID

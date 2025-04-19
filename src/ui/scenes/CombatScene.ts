@@ -23,6 +23,7 @@ export class CombatScene extends Phaser.Scene {
     private nodeId: string = '';
     private isElite: boolean = false;
     private isBoss: boolean = false;
+    private selectedEnemy: Enemy | null = null;
 
     // UI元素
     private playerHealthBar!: HealthBar;
@@ -208,9 +209,9 @@ export class CombatScene extends Phaser.Scene {
         for (let i = 0; i < enemyCount; i++) {
             const x = gameConfig.WIDTH * 3 / 4;
             const y = gameConfig.HEIGHT / (enemyCount + 1) * (i + 1);
-            
+
             const enemy = new Enemy(this, x, y, `enemy_${enemyType}_1`);
-            
+
             // 设置敌人属性
             if (enemyType === 'elite') {
                 enemy.setMaxHp(80);
@@ -222,7 +223,7 @@ export class CombatScene extends Phaser.Scene {
                 enemy.setMaxHp(40);
                 enemy.setHp(40);
             }
-            
+
             enemies.push(enemy);
         }
 
@@ -269,6 +270,9 @@ export class CombatScene extends Phaser.Scene {
 
         // 监听卡牌打出事件
         this.combatManager.getTurnManager().addEventListener('cardPlayed', this.onCardPlayed.bind(this));
+
+        // 监听敌人选择事件
+        this.events.on('enemySelected', this.onEnemySelected, this);
     }
 
     /**
@@ -295,15 +299,18 @@ export class CombatScene extends Phaser.Scene {
      */
     private updateEnemyUI(): void {
         const enemies = this.combatManager.getEnemies();
-        
+
         enemies.forEach(enemy => {
             const healthBar = this.enemyHealthBars.get(enemy.getId());
             if (healthBar) {
                 healthBar.setValue(enemy.getHp());
-                
+
                 // 如果敌人死亡，隐藏生命值条
                 if (enemy.isDead()) {
                     healthBar.setVisible(false);
+
+                    // 注意：敌人的死亡效果现在在Enemy.ts的onDeath方法中处理
+                    // 这里不需要额外的处理
                 }
             }
         });
@@ -314,11 +321,11 @@ export class CombatScene extends Phaser.Scene {
      */
     private onPlayerTurnStarted(data: any): void {
         console.log('CombatScene: 玩家回合开始', data);
-        
+
         // 更新UI
         this.updatePlayerUI(this.combatManager.getPlayer());
         this.updateEnemyUI();
-        
+
         // 启用结束回合按钮
         this.endTurnButton.setDisabled(false);
     }
@@ -328,7 +335,7 @@ export class CombatScene extends Phaser.Scene {
      */
     private onEnemyTurnStarted(data: any): void {
         console.log('CombatScene: 敌人回合开始', data);
-        
+
         // 禁用结束回合按钮
         this.endTurnButton.setDisabled(true);
     }
@@ -338,10 +345,33 @@ export class CombatScene extends Phaser.Scene {
      */
     private onCardPlayed(data: any): void {
         console.log('CombatScene: 卡牌打出', data);
-        
+
         // 更新UI
         this.updatePlayerUI(this.combatManager.getPlayer());
         this.updateEnemyUI();
+    }
+
+    /**
+     * 敌人选择事件处理
+     * @param enemy 选中的敌人
+     */
+    private onEnemySelected(enemy: Enemy): void {
+        console.log(`CombatScene: 选中敌人 ${enemy.getId()}`);
+
+        // 如果敌人已经死亡，不处理选择
+        if (enemy.isDead()) return;
+
+        // 取消之前选中的敌人
+        if (this.selectedEnemy && this.selectedEnemy !== enemy) {
+            this.selectedEnemy.setSelected(false);
+        }
+
+        // 设置新选中的敌人
+        this.selectedEnemy = enemy;
+        enemy.setSelected(true);
+
+        // 更新TurnManager中的目标敌人
+        this.combatManager.getTurnManager().setTargetEnemy(enemy);
     }
 
     /**
@@ -358,15 +388,15 @@ export class CombatScene extends Phaser.Scene {
      */
     private onCombatEnded(data: any): void {
         console.log('CombatScene: 战斗结束', data);
-        
+
         // 禁用结束回合按钮
         this.endTurnButton.setDisabled(true);
-        
+
         // 根据战斗结果处理
         if (data.result === BattleResult.VICTORY) {
             // 胜利，显示奖励场景
             this.time.delayedCall(2000, () => {
-                this.scene.start('RewardScene', { 
+                this.scene.start('RewardScene', {
                     nodeId: this.nodeId,
                     isElite: this.isElite,
                     isBoss: this.isBoss
@@ -397,7 +427,7 @@ export class CombatScene extends Phaser.Scene {
     shutdown(): void {
         // 清理战斗资源
         this.combatManager.cleanup();
-        
+
         // 移除事件监听器
         this.combatManager.removeEventListener('combatEnded', this.onCombatEnded.bind(this));
         this.combatManager.getTurnManager().removeEventListener('playerTurnStarted', this.onPlayerTurnStarted.bind(this));

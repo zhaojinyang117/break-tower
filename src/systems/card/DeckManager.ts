@@ -92,10 +92,10 @@ export class DeckManager {
             const cardX = gameConfig.WIDTH / 2;
             const cardY = gameConfig.HEIGHT - 150;
             const cardSprite = this.cardManager.createCardSprite(cardData, cardX, cardY);
-            
+
             // 设置卡牌交互性
             this.setupCardInteraction(cardSprite);
-            
+
             this.hand.push(cardSprite);
             drawnCount++;
 
@@ -185,7 +185,7 @@ export class DeckManager {
 
         this.hand.forEach((cardSprite, index) => {
             const targetX = startX + index * (cardWidth + spacing);
-            
+
             // 添加移动动画
             this.scene.tweens.add({
                 targets: cardSprite,
@@ -224,44 +224,58 @@ export class DeckManager {
         const cardIndex = this.hand.indexOf(cardSprite);
         if (cardIndex === -1) return false;
 
-        this.hand.splice(cardIndex, 1);
-        this.discardPile.push(cardData);
+        // 触发卡牌打出事件
+        // 注意：这里不会移除卡牌，而是在回调中判断能量是否足够
+        if (this.onCardPlayed) {
+            // 先触发回调，让TurnManager判断能量是否足够
+            this.onCardPlayed(cardData);
 
-        // 添加打出卡牌的动画
-        this.scene.tweens.add({
-            targets: cardSprite,
-            x: gameConfig.WIDTH / 2,
-            y: gameConfig.HEIGHT / 2,
-            alpha: 0,
-            duration: 300,
-            ease: 'Power2',
-            onComplete: () => {
-                // 销毁卡牌精灵
-                this.cardManager.destroyCardSprite(cardSprite);
-                
-                // 重新排列手牌
+            // 如果能量不足，卡牌会回到原位置
+            if (cardData.cost > (cardSprite as any).scene.combatManager?.getPlayer().getEnergy()) {
+                // 返回原位置
                 this.arrangeHand();
-                
-                // 触发卡牌打出事件
-                if (this.onCardPlayed) {
-                    this.onCardPlayed(cardData);
-                }
+                return false;
             }
-        });
 
-        // 同时移动文本容器
-        if ((cardSprite as any).textContainer) {
+            // 能量足够，继续处理
+            this.hand.splice(cardIndex, 1);
+            this.discardPile.push(cardData);
+
+            // 添加打出卡牌的动画
             this.scene.tweens.add({
-                targets: (cardSprite as any).textContainer,
+                targets: cardSprite,
                 x: gameConfig.WIDTH / 2,
                 y: gameConfig.HEIGHT / 2,
                 alpha: 0,
                 duration: 300,
-                ease: 'Power2'
+                ease: 'Power2',
+                onComplete: () => {
+                    // 销毁卡牌精灵
+                    this.cardManager.destroyCardSprite(cardSprite);
+
+                    // 重新排列手牌
+                    this.arrangeHand();
+                }
             });
+
+            // 同时移动文本容器
+            if ((cardSprite as any).textContainer) {
+                this.scene.tweens.add({
+                    targets: (cardSprite as any).textContainer,
+                    x: gameConfig.WIDTH / 2,
+                    y: gameConfig.HEIGHT / 2,
+                    alpha: 0,
+                    duration: 300,
+                    ease: 'Power2'
+                });
+            }
+
+            return true;
         }
 
-        return true;
+        // 如果没有设置回调，则直接返回原位置
+        this.arrangeHand();
+        return false;
     }
 
     /**

@@ -38,10 +38,10 @@ export class TurnManager {
     private currentTurn: TurnState;
     private turnNumber: number;
     private battleResult: BattleResult;
+    private targetEnemy: Enemy | null = null;
 
     // UI元素
     private turnText!: Phaser.GameObjects.Text;
-    private endTurnButton!: Phaser.GameObjects.Container;
 
     // 事件回调
     private eventListeners: { [eventName: string]: Function[] } = {};
@@ -83,38 +83,6 @@ export class TurnManager {
             fontSize: '24px',
             color: '#ffffff'
         }).setOrigin(0.5);
-
-        // 结束回合按钮
-        const buttonWidth = 150;
-        const buttonHeight = 50;
-        const buttonX = gameConfig.WIDTH - buttonWidth / 2 - 20;
-        const buttonY = gameConfig.HEIGHT / 2;
-
-        const buttonBg = this.scene.add.rectangle(0, 0, buttonWidth, buttonHeight, 0x007bff);
-        const buttonText = this.scene.add.text(0, 0, '结束回合', {
-            fontSize: '20px',
-            color: '#ffffff'
-        }).setOrigin(0.5);
-
-        this.endTurnButton = this.scene.add.container(buttonX, buttonY, [buttonBg, buttonText]);
-        this.endTurnButton.setSize(buttonWidth, buttonHeight);
-        this.endTurnButton.setInteractive();
-
-        // 添加点击事件
-        this.endTurnButton.on('pointerdown', () => {
-            if (this.currentTurn === TurnState.PLAYER_TURN) {
-                this.endPlayerTurn();
-            }
-        });
-
-        // 添加按钮悬停效果
-        this.endTurnButton.on('pointerover', () => {
-            buttonBg.setFillStyle(0x0069d9);
-        });
-
-        this.endTurnButton.on('pointerout', () => {
-            buttonBg.setFillStyle(0x007bff);
-        });
     }
 
     /**
@@ -127,6 +95,9 @@ export class TurnManager {
         // 检查能量是否足够
         if (this.player.getEnergy() < cardData.cost) {
             console.log(`TurnManager: 能量不足，需要 ${cardData.cost} 点能量`);
+            // 将卡牌放回手牌
+            // 注意：这里不需要实现，因为卡牌已经被移除了
+            // 我们需要修改DeckManager的playCard方法
             return;
         }
 
@@ -137,16 +108,16 @@ export class TurnManager {
         const context: EffectContext = {
             player: this.player,
             enemies: this.enemies,
-            targetEnemy: this.enemies.length > 0 ? this.enemies[0] : undefined
+            targetEnemy: this.getTargetEnemy()
         };
 
         const results = this.effectExecutor.executeEffects(cardData.effects, context);
-        
+
         // 处理效果结果
         for (const result of results) {
             if (result.success) {
                 console.log(`TurnManager: 效果执行成功 - ${result.message}`);
-                
+
                 // 处理抽牌效果
                 if (result.cardsDrawn) {
                     this.deckManager.drawCard(result.cardsDrawn);
@@ -179,7 +150,7 @@ export class TurnManager {
         const initialHandSize = this.deckManager.getHandSize();
         const targetHandSize = gameConfig.PLAYER.HAND_SIZE;
         const cardsToDraw = Math.max(0, targetHandSize - initialHandSize);
-        
+
         if (cardsToDraw > 0) {
             this.deckManager.drawCard(cardsToDraw);
         }
@@ -281,6 +252,9 @@ export class TurnManager {
         for (const enemy of this.enemies) {
             if (!enemy.isDead()) {
                 enemy.onTurnEnd();
+
+                // 设置下一次意图
+                enemy.setNextIntent();
             }
         }
 
@@ -327,16 +301,15 @@ export class TurnManager {
      */
     private handleBattleEnd(isVictory: boolean): void {
         this.currentTurn = TurnState.BATTLE_ENDED;
-        
+
         // 更新UI
         this.turnText.setText(isVictory ? '战斗胜利' : '战斗失败');
-        this.endTurnButton.setVisible(false);
-        
+
         // 禁用卡牌交互
         this.deckManager.disableCardInteraction();
 
         // 触发战斗结束事件
-        this.triggerEvent('battleEnded', { 
+        this.triggerEvent('battleEnded', {
             result: isVictory ? BattleResult.VICTORY : BattleResult.DEFEAT,
             turnNumber: this.turnNumber
         });
@@ -363,7 +336,7 @@ export class TurnManager {
      */
     removeEventListener(eventName: string, callback: Function): void {
         if (!this.eventListeners[eventName]) return;
-        
+
         const index = this.eventListeners[eventName].indexOf(callback);
         if (index !== -1) {
             this.eventListeners[eventName].splice(index, 1);
@@ -377,7 +350,7 @@ export class TurnManager {
      */
     private triggerEvent(eventName: string, data: any): void {
         if (!this.eventListeners[eventName]) return;
-        
+
         for (const callback of this.eventListeners[eventName]) {
             try {
                 callback(data);
@@ -406,5 +379,34 @@ export class TurnManager {
      */
     getBattleResult(): BattleResult {
         return this.battleResult;
+    }
+
+    /**
+     * 设置目标敌人
+     * @param enemy 目标敌人
+     */
+    setTargetEnemy(enemy: Enemy | null): void {
+        this.targetEnemy = enemy;
+    }
+
+    /**
+     * 获取目标敌人
+     * @returns 目标敌人
+     */
+    getTargetEnemy(): Enemy | undefined {
+        // 如果有选中的敌人，使用选中的敌人
+        if (this.targetEnemy && !this.targetEnemy.isDead()) {
+            return this.targetEnemy;
+        }
+
+        // 如果没有选中的敌人，选择第一个活着的敌人
+        for (const enemy of this.enemies) {
+            if (!enemy.isDead()) {
+                return enemy;
+            }
+        }
+
+        // 如果没有活着的敌人，返回undefined
+        return undefined;
     }
 }
