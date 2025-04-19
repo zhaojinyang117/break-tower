@@ -41,6 +41,7 @@ export class MapScene extends Phaser.Scene {
     private goldText!: Phaser.GameObjects.Text;
     private healthBar!: HealthBar;
     private deckButton!: Button;
+    private settingsButton!: Button;
     private uiContainer!: Phaser.GameObjects.Container;
 
     // 调试信息
@@ -234,7 +235,7 @@ export class MapScene extends Phaser.Scene {
      */
     private isPointerOverUI(pointer: Phaser.Input.Pointer): boolean {
         // 检查点击位置是否在UI容器内的元素上
-        const uiElements = [this.floorText, this.goldText, this.healthBar, this.deckButton];
+        const uiElements = [this.floorText, this.goldText, this.healthBar, this.deckButton, this.settingsButton];
         for (const element of uiElements) {
             if (element && element.getBounds().contains(pointer.x, pointer.y)) {
                 return true;
@@ -318,7 +319,7 @@ export class MapScene extends Phaser.Scene {
      */
     private createBackground(): void {
         this.log('创建背景');
-        
+
         // 创建一个简单的颜色渐变背景
         const background = this.add.graphics();
 
@@ -402,6 +403,26 @@ export class MapScene extends Phaser.Scene {
         });
         this.deckButton.setScrollFactor(0); // UI固定，不随相机移动
         this.uiContainer.add(this.deckButton);
+
+        // 设置按钮
+        this.settingsButton = new Button(this, {
+            x: 50,
+            y: gameConfig.HEIGHT - 30,
+            width: 40,
+            height: 40,
+            text: '⚙️', // 齿轮图标
+            backgroundColor: 0x6c757d,
+            hoverColor: 0x5a6268,
+            borderRadius: 20, // 圆形按钮
+            onClick: () => {
+                console.log('点击了设置按钮');
+                // 暂停当前场景并启动设置场景
+                this.scene.launch('SettingsScene', { previousScene: 'MapScene' });
+                this.scene.pause();
+            }
+        });
+        this.settingsButton.setScrollFactor(0); // UI固定，不随相机移动
+        this.uiContainer.add(this.settingsButton);
     }
 
     /**
@@ -443,14 +464,14 @@ export class MapScene extends Phaser.Scene {
     private createNodeSprite(node: MapNode): void {
         // 创建节点精灵
         const sprite = this.add.sprite(node.x, node.y, `node_${node.type}`);
-        
+
         // 根据节点状态设置透明度
         if (node.status === NodeStatus.UNAVAILABLE) {
             sprite.setAlpha(0.5);
         } else if (node.status === NodeStatus.COMPLETED) {
             sprite.setTint(0x888888);
         }
-        
+
         sprite.setInteractive();
 
         // 将节点添加到地图容器

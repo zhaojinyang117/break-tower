@@ -30,6 +30,7 @@ export class CombatScene extends Phaser.Scene {
     private playerEnergyText!: Phaser.GameObjects.Text;
     private enemyHealthBars: Map<string, HealthBar> = new Map();
     private endTurnButton!: Button;
+    private settingsButton!: Button;
     private deckCountText!: Phaser.GameObjects.Text;
     private discardCountText!: Phaser.GameObjects.Text;
     private drawCountText!: Phaser.GameObjects.Text;
@@ -158,6 +159,24 @@ export class CombatScene extends Phaser.Scene {
             fontSize: '16px',
             color: '#ffffff'
         }).setOrigin(0.5);
+
+        // 创建设置按钮
+        this.settingsButton = new Button(this, {
+            x: gameConfig.WIDTH - 50,
+            y: 50,
+            width: 40,
+            height: 40,
+            text: '⚙️', // 齿轮图标
+            backgroundColor: 0x6c757d,
+            hoverColor: 0x5a6268,
+            borderRadius: 20, // 圆形按钮
+            onClick: () => {
+                console.log('点击了设置按钮');
+                // 暂停当前场景并启动设置场景
+                this.scene.launch('SettingsScene', { previousScene: 'CombatScene' });
+                this.scene.pause();
+            }
+        });
     }
 
     /**

@@ -18,9 +18,25 @@ export class SettingsScene extends Phaser.Scene {
     private musicToggle!: Button;
     private sfxToggle!: Button;
     private developerButton!: Button;
+    private mainMenuButton!: Button;
+
+    // 存储之前的场景名称，用于返回
+    private previousScene: string = 'MainMenuScene';
 
     constructor() {
         super('SettingsScene');
+    }
+
+    /**
+     * 初始化场景
+     * @param data 场景数据
+     */
+    init(data: any): void {
+        console.log('SettingsScene: 初始化场景', data);
+        // 如果有传入previousScene参数，则使用它
+        if (data && data.previousScene) {
+            this.previousScene = data.previousScene;
+        }
     }
 
     create(): void {
@@ -37,6 +53,9 @@ export class SettingsScene extends Phaser.Scene {
 
         // 创建返回按钮
         this.createBackButton();
+
+        // 创建返回主界面按钮
+        this.createMainMenuButton();
 
         // 创建开发者按钮
         this.createDeveloperButton();
@@ -232,18 +251,18 @@ export class SettingsScene extends Phaser.Scene {
         // 使滑块可交互
         const hitArea = new Phaser.Geom.Rectangle(x - width / 2, y - sliderHeight / 2, width, sliderHeight);
         const hitAreaCallback = Phaser.Geom.Rectangle.Contains;
-        
+
         background.setInteractive(hitArea, hitAreaCallback);
-        
+
         // 添加拖动事件
         background.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
             const value = Phaser.Math.Clamp((pointer.x - (x - width / 2)) / width, 0, 1);
-            
+
             // 更新滑块填充
             fill.clear();
             fill.fillStyle(0x28a745, 1);
             fill.fillRect(x - width / 2, y - height / 2, width * value, height);
-            
+
             // 更新滑块手柄
             handle.clear();
             handle.fillStyle(0xffffff, 1);
@@ -253,20 +272,20 @@ export class SettingsScene extends Phaser.Scene {
                 sliderWidth,
                 sliderHeight
             );
-            
+
             // 调用回调
             onChange(value);
         });
-        
+
         background.on('pointermove', (pointer: Phaser.Input.Pointer) => {
             if (pointer.isDown) {
                 const value = Phaser.Math.Clamp((pointer.x - (x - width / 2)) / width, 0, 1);
-                
+
                 // 更新滑块填充
                 fill.clear();
                 fill.fillStyle(0x28a745, 1);
                 fill.fillRect(x - width / 2, y - height / 2, width * value, height);
-                
+
                 // 更新滑块手柄
                 handle.clear();
                 handle.fillStyle(0xffffff, 1);
@@ -276,7 +295,7 @@ export class SettingsScene extends Phaser.Scene {
                     sliderWidth,
                     sliderHeight
                 );
-                
+
                 // 调用回调
                 onChange(value);
             }
@@ -297,8 +316,18 @@ export class SettingsScene extends Phaser.Scene {
             hoverColor: 0x5a6268,
             borderRadius: 10,
             onClick: () => {
-                console.log('点击了返回按钮');
-                this.scene.start('MainMenuScene');
+                console.log(`点击了返回按钮，返回到 ${this.previousScene}`);
+
+                // 如果之前的场景是CombatScene，则恢复该场景
+                if (this.previousScene === 'CombatScene') {
+                    // 关闭设置场景
+                    this.scene.stop();
+                    // 恢复战斗场景
+                    this.scene.resume('CombatScene');
+                } else {
+                    // 否则，直接切换到之前的场景
+                    this.scene.start(this.previousScene);
+                }
             }
         });
     }
@@ -319,6 +348,41 @@ export class SettingsScene extends Phaser.Scene {
             onClick: () => {
                 console.log('点击了开发者按钮');
                 this.scene.start('DeveloperScene');
+            }
+        });
+    }
+
+    /**
+     * 创建返回主界面按钮
+     */
+    private createMainMenuButton(): void {
+        this.mainMenuButton = new Button(this, {
+            x: gameConfig.WIDTH / 2,
+            y: gameConfig.HEIGHT - 160, // 位于开发者按钮上方
+            width: 200,
+            height: 40,
+            text: '返回主界面',
+            backgroundColor: 0xffc107, // 黄色
+            hoverColor: 0xe0a800,
+            borderRadius: 10,
+            onClick: () => {
+                console.log('点击了返回主界面按钮');
+
+                // 停止所有可能的游戏场景
+                if (this.previousScene === 'CombatScene') {
+                    this.scene.stop('CombatScene');
+                } else if (this.previousScene === 'MapScene') {
+                    this.scene.stop('MapScene');
+                }
+
+                // 停止其他可能的场景
+                this.scene.stop('DeckViewScene');
+
+                // 关闭设置场景
+                this.scene.stop();
+
+                // 切换到主菜单场景
+                this.scene.start('MainMenuScene');
             }
         });
     }
