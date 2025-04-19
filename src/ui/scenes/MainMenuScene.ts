@@ -2,13 +2,13 @@ import Phaser from 'phaser';
 import { Button } from '../components/Button';
 import { StateManager } from '../../state/StateManager';
 import { Game } from '../../core/game';
-import { GameStateType } from '../../core/types';
+import { GameStateType, CardType, TargetType, Rarity, EffectType } from '../../core/types';
 
 export class MainMenuScene extends Phaser.Scene {
     private title!: Phaser.GameObjects.Text;
     private startButton!: Button;
     private continueButton!: Button;
-    private optionsButton!: Button;
+    private settingsButton!: Button;
     private stateManager: StateManager;
     private hasSavedGame: boolean = false;
 
@@ -165,19 +165,19 @@ export class MainMenuScene extends Phaser.Scene {
             this.continueButton.setDisabled(true);
         }
 
-        // 创建"选项"按钮
-        this.optionsButton = new Button(this, {
+        // 创建"设置"按钮
+        this.settingsButton = new Button(this, {
             x: width / 2,
             y: startY + (buttonHeight + buttonSpacing) * 2,
             width: buttonWidth,
             height: buttonHeight,
-            text: '选项',
+            text: '设置',
             backgroundColor: 0x6c757d,
             hoverColor: 0x5a6268,
             borderRadius: 10,
             onClick: () => {
-                console.log('点击了选项按钮');
-                // TODO: 实现选项菜单
+                console.log('点击了设置按钮');
+                this.scene.start('SettingsScene');
             }
         });
     }
@@ -224,6 +224,58 @@ export class MainMenuScene extends Phaser.Scene {
             onComplete: () => {
                 // 删除之前的存档（如果有）
                 this.stateManager.deleteSavedRun();
+
+                // 创建新的游戏状态
+                // 创建基本的卡组
+                const startingDeck = [
+                    {
+                        id: 'strike',
+                        name: '打击',
+                        description: '造成 6 点伤害',
+                        type: CardType.ATTACK,
+                        rarity: Rarity.STARTER,
+                        cost: 1,
+                        target: TargetType.ENEMY_SINGLE,
+                        effects: [
+                            { type: EffectType.DAMAGE, value: 6 }
+                        ]
+                    },
+                    {
+                        id: 'defend',
+                        name: '防御',
+                        description: '获得 5 点格挡',
+                        type: CardType.SKILL,
+                        rarity: Rarity.STARTER,
+                        cost: 1,
+                        target: TargetType.SELF,
+                        effects: [
+                            { type: EffectType.BLOCK, value: 5 }
+                        ]
+                    },
+                    {
+                        id: 'bash',
+                        name: '重击',
+                        description: '造成 8 点伤害并给予 2 层易伤',
+                        type: CardType.ATTACK,
+                        rarity: Rarity.STARTER,
+                        cost: 2,
+                        target: TargetType.ENEMY_SINGLE,
+                        effects: [
+                            { type: EffectType.DAMAGE, value: 8 },
+                            { type: EffectType.DEBUFF, value: 2 }
+                        ]
+                    }
+                ];
+
+                // 复制卡牌以创建更多的初始卡牌
+                const fullDeck = [...startingDeck];
+                for (let i = 0; i < 2; i++) {
+                    fullDeck.push({ ...startingDeck[0] });
+                    fullDeck.push({ ...startingDeck[1] });
+                }
+
+                // 创建新的运行状态
+                this.stateManager.createNewRun('玩家', 80, fullDeck);
 
                 // 切换到地图场景
                 this.scene.start('MapScene');

@@ -327,18 +327,8 @@ export class BootScene extends Phaser.Scene {
         graphics.strokeRoundedRect(0, 0, 200, 50, 10);
         graphics.generateTexture('button', 200, 50);
 
-        // 创建节点占位图
-        const nodeTypes = ['battle', 'elite', 'boss', 'rest', 'shop', 'event'];
-        const nodeColors = [0xff0000, 0xff8800, 0x8800ff, 0x00aa00, 0xffcc00, 0x0088ff];
-
-        nodeTypes.forEach((type, index) => {
-            graphics.clear();
-            graphics.fillStyle(nodeColors[index], 1);
-            graphics.fillCircle(30, 30, 30);
-            graphics.lineStyle(4, 0xffffff, 1);
-            graphics.strokeCircle(30, 30, 30);
-            graphics.generateTexture(`node_${type}`, 60, 60);
-        });
+        // 注意：节点占位图现在在generatePlaceholderAssets方法中生成
+        // 这里不再生成节点纹理，以避免重复
 
         // 销毁临时图形对象
         graphics.destroy();

@@ -19,7 +19,9 @@ import {
     MapScene,
     CombatScene,
     DeckViewScene,
-    RewardScene
+    RewardScene,
+    SettingsScene,
+    DeveloperScene
 } from './ui/scenes';
 
 // 获取游戏实例
@@ -32,7 +34,9 @@ gameInstance.init([
     new MapScene(),
     new CombatScene(),
     new DeckViewScene(),
-    new RewardScene()
+    new RewardScene(),
+    new SettingsScene(),
+    new DeveloperScene()
 ]);
 
 // 输出调试信息

@@ -5,3 +5,5 @@ export * from './MapScene';
 export * from './CombatScene';
 export * from './DeckViewScene';
 export * from './RewardScene';
+export * from './SettingsScene';
+export * from './DeveloperScene';
