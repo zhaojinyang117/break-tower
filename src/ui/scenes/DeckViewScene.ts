@@ -467,20 +467,16 @@ export class DeckViewScene extends Phaser.Scene {
      * 添加地牌
      */
     private addLandCard(): void {
-        // 找到基础地牌数据，用于添加地牌
-        let landTemplate = this.cards.find(c => c.type.toLowerCase() === 'land');
-
+        // 始终从 BASE_CARDS 中获取基础地牌作为模板
+        const landTemplate = BASE_CARDS.find(c => c.id === 'basic_land');
         if (!landTemplate) {
-            // 如果没有地牌，从 BASE_CARDS 中找到基础地牌
-            landTemplate = BASE_CARDS.find(c => c.id === 'basic_land');
-            if (!landTemplate) {
-                console.error('DeckViewScene: 无法找到基础地牌数据');
-                return;
-            }
+            console.error('DeckViewScene: 无法找到基础地牌数据');
+            return;
         }
 
-        // 添加地牌到牌组
+        // 添加基础地牌到牌组
         this.stateManager.addCard({ ...landTemplate });
+        console.log(`DeckViewScene: 添加基础地牌 ${landTemplate.name}`);
 
         // 重新加载牌组
         this.loadDeck();
@@ -671,8 +667,16 @@ export class DeckViewScene extends Phaser.Scene {
                 hoverColor: 0x218838,
                 borderRadius: 10,
                 onClick: () => {
-                    // 添加地牌到牌组
-                    this.stateManager.addCard({ ...card });
+                    // 始终从 BASE_CARDS 中获取基础地牌作为模板
+                    const landTemplate = BASE_CARDS.find(c => c.id === 'basic_land');
+                    if (!landTemplate) {
+                        console.error('DeckViewScene: 无法找到基础地牌数据');
+                        return;
+                    }
+
+                    // 添加基础地牌到牌组
+                    this.stateManager.addCard({ ...landTemplate });
+                    console.log(`DeckViewScene: 添加基础地牌 ${landTemplate.name}`);
 
                     // 重新加载牌组
                     this.loadDeck();
