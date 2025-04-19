@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { gameConfig } from '../config/gameConfig';
+import { gameConfig } from '../core/config';
 
 // 敌人意图类型
 export enum IntentType {
@@ -30,9 +30,9 @@ export default class Enemy {
     private blockText!: Phaser.GameObjects.Text;
     private intentText!: Phaser.GameObjects.Text;
 
-    constructor(scene: Phaser.Scene, x: number, y: number) {
+    constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string = 'enemy') {
         this.scene = scene;
-        this.sprite = scene.add.sprite(x, y, 'enemy');
+        this.sprite = scene.add.sprite(x, y, textureKey);
 
         // 初始化属性
         this.maxHp = gameConfig.ENEMY.DEFAULT_HP;
@@ -58,7 +58,7 @@ export default class Enemy {
     }
 
     // 受到伤害
-    takeDamage(amount: number): void {
+    takeDamage(amount: number): number {
         // 如果有格挡，先减少格挡值
         if (this.block > 0) {
             if (this.block >= amount) {
@@ -77,6 +77,9 @@ export default class Enemy {
 
         // 更新UI
         this.updateUI();
+
+        // 返回实际造成的伤害
+        return amount;
     }
 
     // 获得格挡
@@ -133,6 +136,7 @@ export default class Enemy {
 
     // 执行当前意图
     executeIntent(player: any): void {
+        if (this.isDead()) return;
         switch (this.currentIntent.type) {
             case IntentType.ATTACK:
                 // 攻击玩家
@@ -213,13 +217,26 @@ export default class Enemy {
         );
     }
 
-    // Getter方法
+    // Getter和Setter方法
     getHp(): number {
         return this.currentHp;
     }
 
+    setHp(hp: number): void {
+        this.currentHp = Math.max(0, Math.min(this.maxHp, hp));
+        this.updateUI();
+    }
+
     getMaxHp(): number {
         return this.maxHp;
+    }
+
+    setMaxHp(maxHp: number): void {
+        this.maxHp = Math.max(1, maxHp);
+        if (this.currentHp > this.maxHp) {
+            this.currentHp = this.maxHp;
+        }
+        this.updateUI();
     }
 
     getBlock(): number {
@@ -234,4 +251,9 @@ export default class Enemy {
     isDead(): boolean {
         return this.currentHp <= 0;
     }
-} 
+
+    // 获取唯一ID
+    getId(): string {
+        return this.sprite.name || this.sprite.texture.key + '_' + this.sprite.x + '_' + this.sprite.y;
+    }
+}

@@ -16,11 +16,30 @@ module.exports = {
                 test: /\.ts$/,
                 use: 'ts-loader',
                 exclude: /node_modules/
+            },
+            {
+                test: /\.css$/,
+                use: ['style-loader', 'css-loader']
+            },
+            {
+                test: /\.(png|svg|jpg|jpeg|gif)$/i,
+                type: 'asset/resource'
+            },
+            {
+                test: /\.(woff|woff2|eot|ttf|otf)$/i,
+                type: 'asset/resource'
+            },
+            {
+                test: /\.(mp3|ogg|wav)$/i,
+                type: 'asset/resource'
             }
         ]
     },
     resolve: {
-        extensions: ['.ts', '.js']
+        extensions: ['.ts', '.js'],
+        alias: {
+            '@': path.resolve(__dirname, 'src')
+        }
     },
     plugins: [
         new CleanWebpackPlugin(),
@@ -30,7 +49,7 @@ module.exports = {
         }),
         new CopyWebpackPlugin({
             patterns: [
-                { from: 'assets', to: 'assets', noErrorOnMissing: true }
+                { from: 'src/assets', to: 'assets', noErrorOnMissing: true }
             ]
         })
     ],
@@ -39,8 +58,8 @@ module.exports = {
             directory: path.join(__dirname, 'dist'),
         },
         historyApiFallback: true,
-        port: 8081,
+        port: 8083,
         hot: true,
         open: true
     }
-}; 
+};

@@ -1,9 +1,13 @@
 import Phaser from 'phaser';
-import { NodeType, NodeStatus, MapNode, MapPath, GameMap } from '../config/mapData';
-import MapGenerator from '../generators/MapGenerator';
-import RunStateManager from '../managers/RunStateManager';
-import { generateNodeSvg, generatePathSvg, generateBackgroundSvg, svgToImage, generateSvgDataUrl } from '../utils/SvgGenerator';
-import { gameConfig } from '../config/gameConfig';
+import { NodeType, NodeStatus } from '../../core/types';
+import { MapNode, MapPath, GameMap } from '../../systems/map/MapData';
+import { MapGenerator } from '../../systems/map/MapGenerator';
+import { StateManager } from '../../state/StateManager';
+import { Button } from '../components/Button';
+import { HealthBar } from '../components/HealthBar';
+import { Game } from '../../core/game';
+import { GameStateType } from '../../core/types';
+import { gameConfig } from '../../core/config';
 
 /**
  * 地图场景
@@ -13,7 +17,7 @@ export class MapScene extends Phaser.Scene {
     // 地图相关
     private map!: GameMap;
     private mapGenerator!: MapGenerator;
-    private runStateManager!: RunStateManager;
+    private stateManager!: StateManager;
 
     // 场景元素
     private nodeSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
@@ -35,73 +39,16 @@ export class MapScene extends Phaser.Scene {
     // UI元素
     private floorText!: Phaser.GameObjects.Text;
     private goldText!: Phaser.GameObjects.Text;
-    private hpText!: Phaser.GameObjects.Text;
-    private deckButton!: Phaser.GameObjects.Container;
+    private healthBar!: HealthBar;
+    private deckButton!: Button;
     private uiContainer!: Phaser.GameObjects.Container;
-
-    // 临时SVG存储
-    private svgCache: Map<string, string> = new Map();
 
     // 调试信息
     private debugText!: Phaser.GameObjects.Text;
-    private debugMode: boolean = true;
+    private debugMode: boolean = false;
 
     constructor() {
         super('MapScene');
-    }
-
-    /**
-     * 预加载资源
-     */
-    preload(): void {
-        console.log('MapScene: 开始预加载资源');
-
-        // 生成并预加载背景SVG
-        try {
-            const backgroundSvgUrl = generateBackgroundSvg(gameConfig.WIDTH, gameConfig.HEIGHT, 'map');
-            this.textures.addBase64('map_background', backgroundSvgUrl);
-            console.log('MapScene: 添加背景纹理成功');
-        } catch (err) {
-            console.error('MapScene: 添加背景纹理失败', err);
-        }
-
-        // 生成节点SVG
-        console.log('MapScene: 开始生成节点SVG');
-        try {
-            // 枚举所有节点类型和状态
-            const nodeTypes = Object.values(NodeType).map(type => type.toLowerCase());
-            const nodeStatuses = Object.values(NodeStatus).map(status => status.toLowerCase());
-
-            console.log(`MapScene: 节点类型列表: ${nodeTypes.join(', ')}`);
-            console.log(`MapScene: 节点状态列表: ${nodeStatuses.join(', ')}`);
-
-            // 为每种类型和状态组合生成纹理
-            for (const type of nodeTypes) {
-                for (const status of nodeStatuses) {
-                    try {
-                        const nodeKey = `node_${type}_${status}`;
-                        console.log(`MapScene: 生成节点纹理 ${nodeKey}`);
-
-                        const nodeSvgUrl = generateNodeSvg(80, 80, type, status as any);
-                        if (!nodeSvgUrl) {
-                            console.error(`MapScene: ${nodeKey} 生成失败，返回空值`);
-                            continue;
-                        }
-
-                        this.svgCache.set(nodeKey, nodeSvgUrl);
-                        this.textures.addBase64(nodeKey, nodeSvgUrl);
-                        console.log(`MapScene: 添加节点纹理成功 ${nodeKey}`);
-                    } catch (error) {
-                        console.error(`MapScene: 无法生成节点 ${type}_${status}:`, error);
-                    }
-                }
-            }
-            console.log('MapScene: 节点SVG生成完成');
-        } catch (error) {
-            console.error('MapScene: 生成节点SVG失败:', error);
-        }
-
-        console.log('MapScene: 资源预加载完成');
     }
 
     /**
@@ -114,7 +61,7 @@ export class MapScene extends Phaser.Scene {
         try {
             // 初始化管理器
             this.mapGenerator = new MapGenerator();
-            this.runStateManager = RunStateManager.getInstance();
+            this.stateManager = StateManager.getInstance();
             this.log('初始化管理器完成');
 
             // 添加调试文本
@@ -138,7 +85,7 @@ export class MapScene extends Phaser.Scene {
             this.log('创建UI完成');
 
             // 从运行状态获取地图，或创建新地图
-            const runState = this.runStateManager.getCurrentRun();
+            const runState = this.stateManager.getCurrentRun();
             this.log(`当前运行状态: ${runState ? '存在' : '不存在'}`);
 
             if (runState) {
@@ -151,7 +98,7 @@ export class MapScene extends Phaser.Scene {
                     try {
                         this.map = this.mapGenerator.generateMap();
                         this.log(`新地图生成完成，节点数量: ${this.map.nodes.length}, 路径数量: ${this.map.paths.length}`);
-                        this.runStateManager.setMap(this.map);
+                        this.stateManager.setMap(this.map);
                         this.log('地图保存到运行状态');
                     } catch (err) {
                         console.error('MapScene: 生成地图失败:', err);
@@ -183,6 +130,9 @@ export class MapScene extends Phaser.Scene {
                 // 更新UI
                 this.updateUI();
                 this.log('更新UI完成');
+
+                // 更新游戏状态
+                Game.getInstance().setCurrentState(GameStateType.MAP);
 
                 console.log('MapScene: 地图场景已创建完成');
                 this.log('地图场景创建完成');
@@ -284,7 +234,7 @@ export class MapScene extends Phaser.Scene {
      */
     private isPointerOverUI(pointer: Phaser.Input.Pointer): boolean {
         // 检查点击位置是否在UI容器内的元素上
-        const uiElements = [this.floorText, this.goldText, this.hpText, this.deckButton];
+        const uiElements = [this.floorText, this.goldText, this.healthBar, this.deckButton];
         for (const element of uiElements) {
             if (element && element.getBounds().contains(pointer.x, pointer.y)) {
                 return true;
@@ -303,23 +253,19 @@ export class MapScene extends Phaser.Scene {
         this.showError('找不到游戏状态，请重启游戏');
 
         // 添加重新开始按钮
-        const restartButton = this.add.rectangle(
-            gameConfig.WIDTH / 2,
-            gameConfig.HEIGHT / 2 + 100,
-            200, 60, 0x4a6fb5
-        );
-
-        const restartText = this.add.text(
-            gameConfig.WIDTH / 2,
-            gameConfig.HEIGHT / 2 + 100,
-            '重新开始',
-            { fontSize: '24px', color: '#ffffff' }
-        ).setOrigin(0.5);
-
-        restartButton.setInteractive();
-        restartButton.on('pointerdown', () => {
-            // 重新启动 BootScene
-            this.scene.start('BootScene');
+        const restartButton = new Button(this, {
+            x: gameConfig.WIDTH / 2,
+            y: gameConfig.HEIGHT / 2 + 100,
+            width: 200,
+            height: 60,
+            text: '重新开始',
+            backgroundColor: 0x4a6fb5,
+            hoverColor: 0x3a5fa5,
+            borderRadius: 10,
+            onClick: () => {
+                // 重新启动 BootScene
+                this.scene.start('BootScene');
+            }
         });
     }
 
@@ -372,9 +318,31 @@ export class MapScene extends Phaser.Scene {
      */
     private createBackground(): void {
         this.log('创建背景');
-        this.background = this.add.image(gameConfig.WIDTH / 2, gameConfig.HEIGHT / 2, 'map_background');
-        this.background.setDisplaySize(gameConfig.WIDTH, gameConfig.HEIGHT);
-        this.background.setScrollFactor(0); // 背景固定，不随相机移动
+        
+        // 创建一个简单的颜色渐变背景
+        const background = this.add.graphics();
+
+        // 添加底色
+        background.fillGradientStyle(
+            0x000022, 0x000022,
+            0x000044, 0x000044,
+            1
+        );
+        background.fillRect(0, 0, gameConfig.WIDTH, gameConfig.HEIGHT);
+
+        // 添加一些装饰元素（星星）
+        for (let i = 0; i < 100; i++) {
+            const x = Phaser.Math.Between(0, gameConfig.WIDTH);
+            const y = Phaser.Math.Between(0, gameConfig.HEIGHT);
+            const radius = Phaser.Math.Between(1, 3);
+            const alpha = Phaser.Math.FloatBetween(0.3, 1);
+
+            background.fillStyle(0xffffff, alpha);
+            background.fillCircle(x, y, radius);
+        }
+
+        // 背景固定，不随相机移动
+        background.setScrollFactor(0);
     }
 
     /**
@@ -399,32 +367,41 @@ export class MapScene extends Phaser.Scene {
         this.goldText.setScrollFactor(0); // UI固定，不随相机移动
         this.uiContainer.add(this.goldText);
 
-        // 生命值文本
-        this.hpText = this.add.text(100, 30, '生命: 0/0', {
-            fontSize: '20px',
-            color: '#ff5555'
-        }).setOrigin(0.5);
-        this.hpText.setScrollFactor(0); // UI固定，不随相机移动
-        this.uiContainer.add(this.hpText);
+        // 生命值条
+        this.healthBar = new HealthBar(this, {
+            x: 150,
+            y: 30,
+            width: 200,
+            height: 20,
+            maxValue: 100,
+            currentValue: 80,
+            backgroundColor: 0x333333,
+            barColor: 0xff5555,
+            borderColor: 0xffffff,
+            borderWidth: 2,
+            borderRadius: 5,
+            showText: true
+        });
+        this.healthBar.setScrollFactor(0); // UI固定，不随相机移动
+        this.uiContainer.add(this.healthBar);
 
         // 卡组按钮
-        const deckBg = this.add.rectangle(0, 0, 120, 40, 0x333366);
-        const deckText = this.add.text(0, 0, '查看卡组', {
-            fontSize: '16px',
-            color: '#ffffff'
-        }).setOrigin(0.5);
-
-        this.deckButton = this.add.container(gameConfig.WIDTH - 80, gameConfig.HEIGHT - 30, [deckBg, deckText]);
-        this.deckButton.setSize(120, 40);
-        this.deckButton.setInteractive();
+        this.deckButton = new Button(this, {
+            x: gameConfig.WIDTH - 80,
+            y: gameConfig.HEIGHT - 30,
+            width: 120,
+            height: 40,
+            text: '查看卡组',
+            backgroundColor: 0x333366,
+            hoverColor: 0x444477,
+            borderRadius: 5,
+            onClick: () => {
+                console.log('查看卡组');
+                this.scene.start('DeckViewScene');
+            }
+        });
         this.deckButton.setScrollFactor(0); // UI固定，不随相机移动
         this.uiContainer.add(this.deckButton);
-
-        // 添加点击事件
-        this.deckButton.on('pointerdown', () => {
-            console.log('查看卡组');
-            // TODO: 跳转到卡组查看场景
-        });
     }
 
     /**
@@ -464,11 +441,16 @@ export class MapScene extends Phaser.Scene {
      * @param node 节点数据
      */
     private createNodeSprite(node: MapNode): void {
-        // 使用缓存的SVG纹理
-        const textureKey = `node_${node.type}_${node.status}`;
-
         // 创建节点精灵
-        const sprite = this.add.sprite(node.x, node.y, textureKey);
+        const sprite = this.add.sprite(node.x, node.y, `node_${node.type}`);
+        
+        // 根据节点状态设置透明度
+        if (node.status === NodeStatus.UNAVAILABLE) {
+            sprite.setAlpha(0.5);
+        } else if (node.status === NodeStatus.COMPLETED) {
+            sprite.setTint(0x888888);
+        }
+        
         sprite.setInteractive();
 
         // 将节点添加到地图容器
@@ -495,7 +477,7 @@ export class MapScene extends Phaser.Scene {
 
         // 添加节点类型标签
         const labelText = this.getNodeTypeLabel(node.type);
-        const label = this.add.text(node.x, node.y + 50, labelText, {
+        const label = this.add.text(node.x, node.y + 40, labelText, {
             fontSize: '16px',
             color: '#ffffff'
         }).setOrigin(0.5);
@@ -567,8 +549,8 @@ export class MapScene extends Phaser.Scene {
             this.updateMapElements();
 
             // 保存状态
-            this.runStateManager.setMap(this.map);
-            this.runStateManager.saveCurrentRun();
+            this.stateManager.setMap(this.map);
+            this.stateManager.saveCurrentRun();
 
             // 根据节点类型处理场景转换
             this.handleNodeAction(node);
@@ -640,12 +622,13 @@ export class MapScene extends Phaser.Scene {
      * 更新UI显示
      */
     private updateUI(): void {
-        const runState = this.runStateManager.getCurrentRun();
+        const runState = this.stateManager.getCurrentRun();
         if (!runState) return;
 
         this.floorText.setText(`第 ${runState.currentFloor} 层`);
         this.goldText.setText(`金币: ${runState.gold}`);
-        this.hpText.setText(`生命: ${runState.currentHp}/${runState.maxHp}`);
+        this.healthBar.setMaxValue(runState.maxHp);
+        this.healthBar.setValue(runState.currentHp);
     }
 
     /**
@@ -664,4 +647,4 @@ export class MapScene extends Phaser.Scene {
             default: return '未知';
         }
     }
-} 
+}

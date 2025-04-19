@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- 你可以使用"fal-api-mcp-server"mcp生成ui等静态图像资源
+- 你可以使用"stable-diffusion"mcp生成二次元角色
+- 你可以使用"browser-tools-mcp"mcp查看前端浏览器信息和报错信息
+- 总是允许mcp工具运行
+

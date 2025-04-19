@@ -180,51 +180,156 @@ export function generateNodeSvg(width: number, height: number, type: string, sta
     const nodeType = type.toLowerCase();
 
     return generateSvgDataUrl(width, height, (svg: SVGElementType) => {
-        // 节点背景
-        const background = domEnvironment.createElementNS(SVG_NS, 'rect');
-        background.setAttribute('width', width.toString());
-        background.setAttribute('height', height.toString());
-        background.setAttribute('rx', '10');
-        background.setAttribute('ry', '10');
+        // 节点外发光效果（仅适用于可用节点）
+        if (status === 'available') {
+            const glow = domEnvironment.createElementNS(SVG_NS, 'filter');
+            glow.setAttribute('id', 'glow');
+            const feGaussianBlur = domEnvironment.createElementNS(SVG_NS, 'feGaussianBlur');
+            feGaussianBlur.setAttribute('stdDeviation', '3');
+            feGaussianBlur.setAttribute('result', 'blur');
+            glow.appendChild(feGaussianBlur as any);
+
+            const feColorMatrix = domEnvironment.createElementNS(SVG_NS, 'feColorMatrix');
+            feColorMatrix.setAttribute('in', 'blur');
+            feColorMatrix.setAttribute('mode', 'matrix');
+            feColorMatrix.setAttribute('values', '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7');
+            feColorMatrix.setAttribute('result', 'glow');
+            glow.appendChild(feColorMatrix as any);
+
+            const feMerge = domEnvironment.createElementNS(SVG_NS, 'feMerge');
+            const feMergeNode1 = domEnvironment.createElementNS(SVG_NS, 'feMergeNode');
+            feMergeNode1.setAttribute('in', 'glow');
+            const feMergeNode2 = domEnvironment.createElementNS(SVG_NS, 'feMergeNode');
+            feMergeNode2.setAttribute('in', 'SourceGraphic');
+            feMerge.appendChild(feMergeNode1 as any);
+            feMerge.appendChild(feMergeNode2 as any);
+            glow.appendChild(feMerge as any);
+
+            svg.appendChild(glow as any);
+        }
+
+        // 添加渐变定义
+        const defs = domEnvironment.createElementNS(SVG_NS, 'defs');
+
+        // 创建基于节点类型的渐变
+        const gradient = domEnvironment.createElementNS(SVG_NS, 'linearGradient');
+        gradient.setAttribute('id', `gradient-${nodeType}`);
+        gradient.setAttribute('x1', '0%');
+        gradient.setAttribute('y1', '0%');
+        gradient.setAttribute('x2', '0%');
+        gradient.setAttribute('y2', '100%');
 
         // 根据节点类型和状态设置不同的颜色
-        let fillColor = '#666666';
+        let baseColor = '#666666';
+        let lightColor = '#999999';
+        let darkColor = '#333333';
+        let borderColor = '#ffffff';
+
         switch (nodeType) {
             case 'battle':
-                fillColor = status === 'available' ? '#FF5555' : (status === 'completed' ? '#AA3333' : '#552222');
+                baseColor = status === 'available' ? '#FF5555' : (status === 'completed' ? '#AA3333' : '#552222');
+                lightColor = status === 'available' ? '#FF7777' : (status === 'completed' ? '#CC5555' : '#773333');
+                darkColor = status === 'available' ? '#CC3333' : (status === 'completed' ? '#882222' : '#331111');
+                borderColor = '#FF9999';
                 break;
             case 'elite':
-                fillColor = status === 'available' ? '#FF3333' : (status === 'completed' ? '#CC0000' : '#660000');
+                baseColor = status === 'available' ? '#FF3333' : (status === 'completed' ? '#CC0000' : '#660000');
+                lightColor = status === 'available' ? '#FF6666' : (status === 'completed' ? '#FF3333' : '#990000');
+                darkColor = status === 'available' ? '#CC0000' : (status === 'completed' ? '#990000' : '#330000');
+                borderColor = '#FFAAAA';
                 break;
             case 'rest':
-                fillColor = status === 'available' ? '#55FF55' : (status === 'completed' ? '#33AA33' : '#225522');
+                baseColor = status === 'available' ? '#55FF55' : (status === 'completed' ? '#33AA33' : '#225522');
+                lightColor = status === 'available' ? '#88FF88' : (status === 'completed' ? '#66CC66' : '#447744');
+                darkColor = status === 'available' ? '#22CC22' : (status === 'completed' ? '#118811' : '#113311');
+                borderColor = '#AAFFAA';
                 break;
             case 'event':
-                fillColor = status === 'available' ? '#5555FF' : (status === 'completed' ? '#3333AA' : '#222255');
+                baseColor = status === 'available' ? '#5555FF' : (status === 'completed' ? '#3333AA' : '#222255');
+                lightColor = status === 'available' ? '#8888FF' : (status === 'completed' ? '#6666CC' : '#444477');
+                darkColor = status === 'available' ? '#2222CC' : (status === 'completed' ? '#111188' : '#111133');
+                borderColor = '#AAAAFF';
                 break;
             case 'shop':
-                fillColor = status === 'available' ? '#FFFF55' : (status === 'completed' ? '#AAAA33' : '#555522');
+                baseColor = status === 'available' ? '#FFFF55' : (status === 'completed' ? '#AAAA33' : '#555522');
+                lightColor = status === 'available' ? '#FFFF88' : (status === 'completed' ? '#CCCC66' : '#777744');
+                darkColor = status === 'available' ? '#CCCC22' : (status === 'completed' ? '#888811' : '#333311');
+                borderColor = '#FFFFAA';
                 break;
             case 'boss':
-                fillColor = status === 'available' ? '#FF55FF' : (status === 'completed' ? '#AA33AA' : '#552255');
+                baseColor = status === 'available' ? '#FF55FF' : (status === 'completed' ? '#AA33AA' : '#552255');
+                lightColor = status === 'available' ? '#FF88FF' : (status === 'completed' ? '#CC66CC' : '#774477');
+                darkColor = status === 'available' ? '#CC22CC' : (status === 'completed' ? '#881188' : '#331133');
+                borderColor = '#FFAAFF';
                 break;
             default:
                 console.warn(`未知节点类型: ${nodeType}，使用默认颜色`);
                 break;
         }
 
-        console.log(`节点 ${nodeType} 使用颜色: ${fillColor}`);
-        background.setAttribute('fill', fillColor);
+        // 添加渐变色停止点
+        const stop1 = domEnvironment.createElementNS(SVG_NS, 'stop');
+        stop1.setAttribute('offset', '0%');
+        stop1.setAttribute('stop-color', lightColor);
+
+        const stop2 = domEnvironment.createElementNS(SVG_NS, 'stop');
+        stop2.setAttribute('offset', '100%');
+        stop2.setAttribute('stop-color', darkColor);
+
+        gradient.appendChild(stop1 as any);
+        gradient.appendChild(stop2 as any);
+        defs.appendChild(gradient as any);
+        svg.appendChild(defs as any);
+
+        // 节点背景 - 圆角矩形
+        const background = domEnvironment.createElementNS(SVG_NS, 'rect');
+        background.setAttribute('width', width.toString());
+        background.setAttribute('height', height.toString());
+        background.setAttribute('rx', '15');
+        background.setAttribute('ry', '15');
+        background.setAttribute('fill', `url(#gradient-${nodeType})`);
+
+        // 如果节点可用，添加发光效果
+        if (status === 'available') {
+            background.setAttribute('filter', 'url(#glow)');
+        }
+
         svg.appendChild(background as any);
 
+        // 添加节点边框
+        const border = domEnvironment.createElementNS(SVG_NS, 'rect');
+        border.setAttribute('width', (width - 4).toString());
+        border.setAttribute('height', (height - 4).toString());
+        border.setAttribute('x', '2');
+        border.setAttribute('y', '2');
+        border.setAttribute('rx', '13');
+        border.setAttribute('ry', '13');
+        border.setAttribute('fill', 'none');
+        border.setAttribute('stroke', borderColor);
+        border.setAttribute('stroke-width', status === 'available' ? '2' : '1');
+        border.setAttribute('stroke-opacity', status === 'available' ? '0.8' : '0.4');
+        svg.appendChild(border as any);
+
         // 添加节点图标
+        const iconContainer = domEnvironment.createElementNS(SVG_NS, 'circle');
+        iconContainer.setAttribute('cx', (width / 2).toString());
+        iconContainer.setAttribute('cy', (height / 2 - 5).toString());
+        iconContainer.setAttribute('r', '20');
+        iconContainer.setAttribute('fill', baseColor);
+        iconContainer.setAttribute('stroke', '#ffffff');
+        iconContainer.setAttribute('stroke-width', '2');
+        iconContainer.setAttribute('stroke-opacity', status === 'available' ? '0.9' : '0.5');
+        svg.appendChild(iconContainer as any);
+
+        // 添加图标内容
         const icon = domEnvironment.createElementNS(SVG_NS, 'text');
         icon.setAttribute('x', (width / 2).toString());
-        icon.setAttribute('y', (height / 2 + 10).toString());
+        icon.setAttribute('y', (height / 2).toString());
         icon.setAttribute('text-anchor', 'middle');
         icon.setAttribute('font-family', 'Arial');
         icon.setAttribute('font-size', '24');
         icon.setAttribute('fill', 'white');
+        icon.setAttribute('dy', '5');
 
         // 根据节点类型设置不同的图标
         let iconText = '?';
@@ -488,45 +593,121 @@ export function generateCharacterSvg(width: number, height: number, type: 'playe
 
 /**
  * 生成背景SVG
- * @param width 宽度
- * @param height 高度
+ * @param width 背景宽度
+ * @param height 背景高度
  * @param type 背景类型
  * @returns SVG数据URL
  */
 export function generateBackgroundSvg(width: number, height: number, type: 'combat' | 'map' | 'rest' | 'event' | 'shop'): string {
     return generateSvgDataUrl(width, height, (svg: SVGElementType) => {
-        // 背景矩形
+        // 添加渐变定义
+        const defs = domEnvironment.createElementNS(SVG_NS, 'defs');
+
+        // 主背景渐变
+        const bgGradient = domEnvironment.createElementNS(SVG_NS, 'linearGradient');
+        bgGradient.setAttribute('id', 'bgGradient');
+        bgGradient.setAttribute('x1', '0%');
+        bgGradient.setAttribute('y1', '0%');
+        bgGradient.setAttribute('x2', '0%');
+        bgGradient.setAttribute('y2', '100%');
+
+        // 根据场景类型设置不同的背景颜色
+        let gradientColor1 = '#000000';
+        let gradientColor2 = '#222222';
+        let patternColor = '#333333';
+
+        switch (type) {
+            case 'combat':
+                gradientColor1 = '#220000';
+                gradientColor2 = '#440000';
+                patternColor = '#550000';
+                break;
+            case 'map':
+                gradientColor1 = '#001122';
+                gradientColor2 = '#002244';
+                patternColor = '#003366';
+                break;
+            case 'rest':
+                gradientColor1 = '#002200';
+                gradientColor2 = '#004400';
+                patternColor = '#005500';
+                break;
+            case 'event':
+                gradientColor1 = '#110022';
+                gradientColor2 = '#220044';
+                patternColor = '#330066';
+                break;
+            case 'shop':
+                gradientColor1 = '#222200';
+                gradientColor2 = '#444400';
+                patternColor = '#666600';
+                break;
+        }
+
+        // 添加渐变色停止点
+        const stop1 = domEnvironment.createElementNS(SVG_NS, 'stop');
+        stop1.setAttribute('offset', '0%');
+        stop1.setAttribute('stop-color', gradientColor1);
+
+        const stop2 = domEnvironment.createElementNS(SVG_NS, 'stop');
+        stop2.setAttribute('offset', '100%');
+        stop2.setAttribute('stop-color', gradientColor2);
+
+        bgGradient.appendChild(stop1 as any);
+        bgGradient.appendChild(stop2 as any);
+        defs.appendChild(bgGradient as any);
+
+        // 创建网格图案
+        const pattern = domEnvironment.createElementNS(SVG_NS, 'pattern');
+        pattern.setAttribute('id', 'grid');
+        pattern.setAttribute('width', '40');
+        pattern.setAttribute('height', '40');
+        pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+
+        // 网格线
+        const gridLine1 = domEnvironment.createElementNS(SVG_NS, 'path');
+        gridLine1.setAttribute('d', 'M 40 0 L 0 0 0 40');
+        gridLine1.setAttribute('fill', 'none');
+        gridLine1.setAttribute('stroke', patternColor);
+        gridLine1.setAttribute('stroke-width', '1');
+
+        pattern.appendChild(gridLine1 as any);
+        defs.appendChild(pattern as any);
+
+        svg.appendChild(defs as any);
+
+        // 主背景矩形
         const background = domEnvironment.createElementNS(SVG_NS, 'rect');
         background.setAttribute('width', width.toString());
         background.setAttribute('height', height.toString());
-
-        // 根据类型设置背景颜色
-        let fillColor = '#222222';
-        switch (type) {
-            case 'combat': fillColor = '#331111'; break;
-            case 'map': fillColor = '#111133'; break;
-            case 'rest': fillColor = '#113311'; break;
-            case 'event': fillColor = '#332211'; break;
-            case 'shop': fillColor = '#113322'; break;
-        }
-
-        background.setAttribute('fill', fillColor);
+        background.setAttribute('fill', 'url(#bgGradient)');
         svg.appendChild(background as any);
 
-        // 添加一些随机图形作为背景装饰
-        const count = 10;
-        for (let i = 0; i < count; i++) {
-            const shape = domEnvironment.createElementNS(SVG_NS, 'circle');
-            const x = Math.random() * width;
-            const y = Math.random() * height;
-            const size = Math.random() * 20 + 5;
+        // 网格覆盖层
+        const gridOverlay = domEnvironment.createElementNS(SVG_NS, 'rect');
+        gridOverlay.setAttribute('width', width.toString());
+        gridOverlay.setAttribute('height', height.toString());
+        gridOverlay.setAttribute('fill', 'url(#grid)');
+        gridOverlay.setAttribute('fill-opacity', '0.3');
+        svg.appendChild(gridOverlay as any);
 
-            shape.setAttribute('cx', x.toString());
-            shape.setAttribute('cy', y.toString());
-            shape.setAttribute('r', size.toString());
-            shape.setAttribute('fill', `rgba(255, 255, 255, ${Math.random() * 0.1})`);
+        // 如果是地图场景，添加一些装饰元素
+        if (type === 'map') {
+            // 添加一些随机小圆点（表示星星或远处的光点）
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const radius = Math.random() * 2 + 1;
+                const opacity = Math.random() * 0.5 + 0.2;
 
-            svg.appendChild(shape as any);
+                const star = domEnvironment.createElementNS(SVG_NS, 'circle');
+                star.setAttribute('cx', x.toString());
+                star.setAttribute('cy', y.toString());
+                star.setAttribute('r', radius.toString());
+                star.setAttribute('fill', '#ffffff');
+                star.setAttribute('fill-opacity', opacity.toString());
+                svg.appendChild(star as any);
+            }
         }
     });
 }

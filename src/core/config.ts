@@ -1,7 +1,9 @@
+import { GameConfig } from './types';
+
 /**
  * 游戏全局配置
  */
-export const gameConfig = {
+export const gameConfig: GameConfig = {
     // 游戏窗口大小
     WIDTH: 1280,
     HEIGHT: 720,
@@ -58,9 +60,9 @@ export const gameConfig = {
 
     // 奖励设置
     REWARDS: {
-        GOLD_PER_BATTLE: { MIN: 10, MAX: 20 },
-        GOLD_PER_ELITE: { MIN: 25, MAX: 35 },
-        GOLD_PER_BOSS: { MIN: 75, MAX: 100 },
+        GOLD_PER_BATTLE: { min: 10, max: 20 },
+        GOLD_PER_ELITE: { min: 25, max: 35 },
+        GOLD_PER_BOSS: { min: 75, max: 100 },
         CARDS_PER_BATTLE: 3, // 战斗后提供的卡牌选择数量
     },
 
@@ -84,4 +86,4 @@ export const gameConfig = {
         ENABLE_MUSIC: true,
         ENABLE_SFX: true
     }
-}; 
+};

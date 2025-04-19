@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { gameConfig } from '../config/gameConfig';
-import * as SvgGenerator from '../utils/SvgGenerator';
-import RunStateManager from '../managers/RunStateManager';
-import { BASE_CARDS } from '../config/cardData';
+import { gameConfig } from '../../core/config';
+import * as SvgGenerator from '../../utils/SvgGenerator';
+import { StateManager } from '../../state/StateManager';
+import { BASE_CARDS } from '../../systems/card/CardData';
 
 // SVG命名空间常量
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -53,39 +53,39 @@ export class BootScene extends Phaser.Scene {
         // 创建过渡动画
         this.createStartAnimation();
 
-        // 获取运行状态管理器
-        const runStateManager = RunStateManager.getInstance();
-        console.log('BootScene: 获取到 RunStateManager 实例');
+        // 获取状态管理器
+        const stateManager = StateManager.getInstance();
+        console.log('BootScene: 获取到 StateManager 实例');
 
         // 检查是否有保存的游戏
-        const hasSavedGame = runStateManager.hasSavedRun();
+        const hasSavedGame = stateManager.hasSavedRun();
         console.log('BootScene: 有保存的游戏状态:', hasSavedGame);
 
         // 加载或创建初始运行状态
         if (hasSavedGame) {
             // 加载已保存的游戏状态
-            const loadSuccess = runStateManager.loadSavedRun();
+            const loadSuccess = stateManager.loadSavedRun();
             console.log('BootScene: 加载游戏状态:', loadSuccess ? '成功' : '失败');
 
             if (!loadSuccess) {
                 // 如果加载失败，创建新的游戏状态
                 console.log('BootScene: 加载失败，创建新游戏状态');
-                this.createInitialRunState(runStateManager);
+                this.createInitialRunState(stateManager);
             }
         } else {
             // 创建新的游戏状态
             console.log('BootScene: 没有保存的游戏状态，创建新游戏状态');
-            this.createInitialRunState(runStateManager);
+            this.createInitialRunState(stateManager);
         }
 
         // 检查运行状态的完整性
-        const currentRun = runStateManager.getCurrentRun();
+        const currentRun = stateManager.getCurrentRun();
         console.log('BootScene: 当前运行状态:', currentRun ? '已创建' : '创建失败',
             currentRun ? `玩家生命: ${currentRun.currentHp}/${currentRun.maxHp}` : '');
 
-        // 启动地图场景
-        console.log('BootScene: 启动地图场景');
-        this.scene.start('MapScene');
+        // 启动主菜单场景
+        console.log('BootScene: 启动主菜单场景');
+        this.scene.start('MainMenuScene');
     }
 
     /**
@@ -386,11 +386,11 @@ export class BootScene extends Phaser.Scene {
 
     /**
      * 创建初始运行状态
-     * @param runStateManager 运行状态管理器
+     * @param stateManager 状态管理器
      */
-    private createInitialRunState(runStateManager: RunStateManager): void {
+    private createInitialRunState(stateManager: StateManager): void {
         // 创建一个新的运行状态，使用默认玩家名称、生命值和基础卡组
-        const newState = runStateManager.createNewRun(
+        const newState = stateManager.createNewRun(
             '玩家',
             gameConfig.PLAYER.STARTING_HP,
             [...BASE_CARDS.slice(0, 5)] // 从基础卡组中选择前5张卡作为初始卡组
@@ -398,7 +398,7 @@ export class BootScene extends Phaser.Scene {
         console.log('创建新的游戏状态:', newState ? '成功' : '失败');
 
         // 保存创建的状态
-        runStateManager.saveCurrentRun();
+        stateManager.saveCurrentRun();
     }
 
     /**
@@ -652,4 +652,4 @@ export class BootScene extends Phaser.Scene {
             svg.appendChild(mouth as any);
         });
     }
-} 
+}

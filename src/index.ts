@@ -1,12 +1,9 @@
 import Phaser from 'phaser';
-import { CombatScene } from './scenes/CombatScene';
-import { MapScene } from './scenes/MapScene';
-import { BootScene } from './scenes/BootScene';
-import { RewardScene } from './scenes/RewardScene';
-import { gameConfig } from './config/gameConfig';
+import { gameConfig } from './core/config';
 import * as SvgGenerator from './utils/SvgGenerator';
+import { Game } from './core/game';
 
-// 添加SvgGenerator到window对象，使其在全局可用
+// 添加SvgGenerator到window对象，供全局使用
 declare global {
     interface Window {
         SvgGenerator: typeof SvgGenerator;
@@ -15,26 +12,31 @@ declare global {
 
 window.SvgGenerator = SvgGenerator;
 
-// 游戏配置
-const config: Phaser.Types.Core.GameConfig = {
-    type: Phaser.AUTO,
-    width: gameConfig.WIDTH,
-    height: gameConfig.HEIGHT,
-    backgroundColor: '#000000',
-    scene: [BootScene, MapScene, CombatScene, RewardScene],
-    physics: {
-        default: 'arcade',
-        arcade: {
-            gravity: { x: 0, y: 0 },
-            debug: false
-        }
-    }
-};
+// 导入所有场景
+import {
+    BootScene,
+    MainMenuScene,
+    MapScene,
+    CombatScene,
+    DeckViewScene,
+    RewardScene
+} from './ui/scenes';
 
-// 创建游戏实例
-const game = new Phaser.Game(config);
+// 获取游戏实例
+const gameInstance = Game.getInstance();
 
-// 添加窗口大小调整事件监听
-window.addEventListener('resize', () => {
-    game.scale.refresh();
-}); 
+// 初始化游戏
+gameInstance.init([
+    new BootScene(),
+    new MainMenuScene(),
+    new MapScene(),
+    new CombatScene(),
+    new DeckViewScene(),
+    new RewardScene()
+]);
+
+// 输出调试信息
+console.log(`Break Tower running in ${gameConfig.DEBUG ? 'DEBUG' : 'PRODUCTION'} mode`);
+
+// 导出游戏实例以供全局访问
+export default gameInstance;

@@ -1,12 +1,15 @@
 {
   "name": "break-tower",
   "version": "0.1.0",
-  "description": "一个类似杀戮尖塔的web页游",
-  "main": "index.js",
+  "description": "卡牌Roguelike游戏 - 重构版",
+  "main": "src/index.ts",
   "scripts": {
     "start": "webpack serve --mode development",
     "build": "webpack --mode production",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No tests specified\" && exit 0",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "keywords": [
     "game",
@@ -17,9 +20,19 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^20.9.0",
+    "@typescript-eslint/eslint-plugin": "^6.10.0",
+    "@typescript-eslint/parser": "^6.10.0",
     "clean-webpack-plugin": "^4.0.0",
     "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.8.1",
+    "eslint": "^8.53.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "file-loader": "^6.2.0",
     "html-webpack-plugin": "^5.5.3",
+    "prettier": "^3.0.3",
+    "style-loader": "^3.3.3",
     "ts-loader": "^9.5.0",
     "typescript": "^5.2.2",
     "webpack": "^5.89.0",
@@ -29,4 +42,4 @@
   "dependencies": {
     "phaser": "^3.60.0"
   }
-} 
+}
