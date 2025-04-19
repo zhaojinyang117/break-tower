@@ -40,7 +40,8 @@ export enum CardType {
     SKILL = 'skill',
     POWER = 'power',
     STATUS = 'status',
-    CURSE = 'curse'
+    CURSE = 'curse',
+    LAND = 'land'  // 地牌类型，类似万智牌中的地牌
 }
 
 // 卡牌目标类型
@@ -117,7 +118,7 @@ export interface Size {
 }
 
 // 矩形接口
-export interface Rectangle extends Position, Size {}
+export interface Rectangle extends Position, Size { }
 
 // 范围接口
 export interface Range {

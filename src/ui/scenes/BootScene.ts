@@ -196,7 +196,7 @@ export class BootScene extends Phaser.Scene {
      * 创建卡牌占位图
      */
     private createCardPlaceholders(): void {
-        const cardTypes = ['attack', 'defend', 'skill', 'power'];
+        const cardTypes = ['attack', 'defend', 'skill', 'power', 'land'];
         const graphics = this.add.graphics();
 
         // 为每种卡牌类型创建一个不同颜色的矩形
@@ -219,6 +219,9 @@ export class BootScene extends Phaser.Scene {
                 case 'power':
                     color = 0xaa00aa; // 紫色能力卡
                     break;
+                case 'land':
+                    color = 0x8B4513; // 棕色地牌
+                    break;
                 default:
                     color = 0xaaaaaa; // 灰色默认
             }
@@ -239,6 +242,47 @@ export class BootScene extends Phaser.Scene {
             graphics.fillStyle(0xffffff, 0.8);
             graphics.fillRoundedRect(20, 20, 40, 30, 8); // 费用区域
             graphics.fillRoundedRect(20, 230, 160, 30, 8); // 名称区域
+
+            // 如果是地牌，添加特殊图案
+            if (type === 'land') {
+                // 绘制地牌特殊图案（简单的山形和树）
+                graphics.fillStyle(0x228B22, 1); // 森林绿
+
+                // 绘制山形
+                graphics.beginPath();
+                graphics.moveTo(40, 100);
+                graphics.lineTo(80, 70);
+                graphics.lineTo(120, 110);
+                graphics.lineTo(160, 80);
+                graphics.lineTo(160, 140);
+                graphics.lineTo(40, 140);
+                graphics.closePath();
+                graphics.fillPath();
+
+                // 绘制树
+                graphics.fillStyle(0x8B4513, 1); // 棕色树干
+                graphics.fillRect(70, 140, 10, 20);
+                graphics.fillRect(130, 140, 10, 20);
+
+                // 绘制树冠
+                graphics.fillStyle(0x32CD32, 1); // 浅绿色树冠
+                graphics.fillCircle(75, 130, 15);
+                graphics.fillCircle(135, 130, 15);
+
+                // 绘制能量符号
+                graphics.fillStyle(0xFFD700, 1); // 金色能量符号
+                graphics.fillCircle(100, 100, 20);
+
+                // 添加能量文本
+                const energyText = this.add.text(100, 100, '能量', {
+                    fontSize: '16px',
+                    color: '#000000',
+                    fontStyle: 'bold'
+                }).setOrigin(0.5);
+
+                // 将文本转换为纹理
+                energyText.setVisible(false); // 隐藏文本，只用于生成纹理
+            }
 
             // 生成贴图
             graphics.generateTexture(`card_${type}`, 200, 280);
@@ -461,18 +505,27 @@ export class BootScene extends Phaser.Scene {
 
         // 生成卡牌占位SVG
         try {
-            const cardTypes = ['攻击', '防御', '技能', '能力'];
-            const cardColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#a178df'];
+            const cardTypes = ['攻击', '防御', '技能', '能力', '地牌'];
+            const cardColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#a178df', '#8B4513'];
 
             cardTypes.forEach((type, index) => {
                 try {
-                    const cardDescription = `这是一张${type}卡牌示例，可以展示${type}效果。`;
+                    let cardDescription;
+                    let cost = index + 1;
+
+                    if (type === '地牌') {
+                        cardDescription = `这是一张地牌，可以提供能量。每回合只能使用一张地牌。`;
+                        cost = 0; // 地牌没有费用
+                    } else {
+                        cardDescription = `这是一张${type}卡牌示例，可以展示${type}效果。`;
+                    }
+
                     const cardDataUrl = SvgGenerator.generateCardSvg(
                         180,
                         250,
                         `${type}卡`,
                         `${type}卡牌`,
-                        index + 1,
+                        cost,
                         cardDescription
                     );
                     this.textures.addBase64(`card_${type}`, cardDataUrl);
@@ -549,21 +602,29 @@ export class BootScene extends Phaser.Scene {
 
         // 生成更多卡牌SVG（不同能量消耗）
         try {
-            const cardTypes = ['attack', 'defend', 'skill', 'power'];
+            const cardTypes = ['attack', 'defend', 'skill', 'power', 'land'];
             const costValues = [0, 1, 2, 3];
 
             cardTypes.forEach(type => {
                 costValues.forEach(cost => {
                     try {
-                        const cardName = `${type.charAt(0).toUpperCase() + type.slice(1)} ${cost}`;
-                        const cardDescription = `Cost ${cost}: This is a ${type} card with ${cost} energy cost.`;
+                        let cardName = `${type.charAt(0).toUpperCase() + type.slice(1)} ${cost}`;
+                        let cardDescription = `Cost ${cost}: This is a ${type} card with ${cost} energy cost.`;
                         let cardColor = '#555555';
+
+                        // 地牌特殊处理
+                        if (type === 'land') {
+                            cardName = 'Land';
+                            cardDescription = 'This is a land card that provides energy. You can only use one land card per turn.';
+                            cost = 0; // 地牌没有费用
+                        }
 
                         switch (type) {
                             case 'attack': cardColor = '#aa3333'; break;
                             case 'defend': cardColor = '#3333aa'; break;
                             case 'skill': cardColor = '#33aa33'; break;
                             case 'power': cardColor = '#aa33aa'; break;
+                            case 'land': cardColor = '#8B4513'; break;
                         }
 
                         const cardDataUrl = SvgGenerator.generateCardSvg(

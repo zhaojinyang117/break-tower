@@ -21,7 +21,8 @@ import {
     DeckViewScene,
     RewardScene,
     SettingsScene,
-    DeveloperScene
+    DeveloperScene,
+    DiscardScene
 } from './ui/scenes';
 
 // 获取游戏实例
@@ -36,7 +37,8 @@ gameInstance.init([
     new DeckViewScene(),
     new RewardScene(),
     new SettingsScene(),
-    new DeveloperScene()
+    new DeveloperScene(),
+    new DiscardScene()
 ]);
 
 // 输出调试信息

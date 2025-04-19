@@ -3,6 +3,7 @@ import { Button } from '../components/Button';
 import { StateManager } from '../../state/StateManager';
 import { Game } from '../../core/game';
 import { GameStateType, CardType, TargetType, Rarity, EffectType } from '../../core/types';
+import { BASE_CARDS } from '../../systems/card/CardData';
 
 export class MainMenuScene extends Phaser.Scene {
     private title!: Phaser.GameObjects.Text;
@@ -272,6 +273,27 @@ export class MainMenuScene extends Phaser.Scene {
                 for (let i = 0; i < 2; i++) {
                     fullDeck.push({ ...startingDeck[0] });
                     fullDeck.push({ ...startingDeck[1] });
+                }
+
+                // 找到基础地牌
+                const basicLand = BASE_CARDS.find(card => card.id === 'basic_land');
+                if (basicLand) {
+                    // 计算需要添加的地牌数量（总牌数的25%）
+                    const currentDeckSize = fullDeck.length;
+                    const targetLandCount = Math.ceil(currentDeckSize * 0.25);
+
+                    console.log(`MainMenuScene: 添加${targetLandCount}张地牌到牌组中（总牌数${currentDeckSize}的25%）`);
+
+                    // 添加地牌到牌组中，并确保均匀分布
+                    for (let i = 0; i < targetLandCount; i++) {
+                        // 将地牌插入到牌组的随机位置
+                        const insertPosition = Math.floor(Math.random() * (fullDeck.length + 1));
+                        fullDeck.splice(insertPosition, 0, { ...basicLand });
+                    }
+
+                    console.log(`MainMenuScene: 牌组初始化完成，总牌数: ${fullDeck.length}`);
+                } else {
+                    console.error('MainMenuScene: 无法找到基础地牌数据');
                 }
 
                 // 创建新的运行状态

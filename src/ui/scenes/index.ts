@@ -7,3 +7,4 @@ export * from './DeckViewScene';
 export * from './RewardScene';
 export * from './SettingsScene';
 export * from './DeveloperScene';
+export * from './DiscardScene';

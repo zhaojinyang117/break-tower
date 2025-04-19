@@ -308,9 +308,15 @@ export class CombatScene extends Phaser.Scene {
 
         // 更新卡组计数
         const deckManager = this.combatManager.getDeckManager();
-        this.deckCountText.setText(`抽牌堆: ${deckManager.getDrawPileSize()}`);
-        this.discardCountText.setText(`弃牌堆: ${deckManager.getDiscardPileSize()}`);
-        this.drawCountText.setText(`手牌: ${deckManager.getHandSize()}`);
+        const drawPileSize = deckManager.getDrawPileSize();
+        const discardPileSize = deckManager.getDiscardPileSize();
+        const handSize = deckManager.getHandSize();
+
+        this.deckCountText.setText(`抽牌堆: ${drawPileSize}`);
+        this.discardCountText.setText(`弃牌堆: ${discardPileSize}`);
+        this.drawCountText.setText(`手牌: ${handSize}`);
+
+        console.log(`CombatScene: 更新卡组计数 - 抽牌堆: ${drawPileSize}, 弃牌堆: ${discardPileSize}, 手牌: ${handSize}`);
     }
 
     /**
@@ -365,9 +371,18 @@ export class CombatScene extends Phaser.Scene {
     private onCardPlayed(data: any): void {
         console.log('CombatScene: 卡牌打出', data);
 
+        // 获取卡组管理器
+        const deckManager = this.combatManager.getDeckManager();
+
+        // 打印当前卡组状态
+        console.log(`CombatScene: 卡牌打出前 - 抽牌堆: ${deckManager.getDrawPileSize()}, 弃牌堆: ${deckManager.getDiscardPileSize()}, 手牌: ${deckManager.getHandSize()}`);
+
         // 更新UI
         this.updatePlayerUI(this.combatManager.getPlayer());
         this.updateEnemyUI();
+
+        // 打印更新后的卡组状态
+        console.log(`CombatScene: 卡牌打出后 - 抽牌堆: ${deckManager.getDrawPileSize()}, 弃牌堆: ${deckManager.getDiscardPileSize()}, 手牌: ${deckManager.getHandSize()}`);
     }
 
     /**

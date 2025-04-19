@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { gameConfig } from '../../core/config';
 import { StateManager } from '../../state/StateManager';
-import { CardData } from '../../systems/card/CardData';
+import { CardData, BASE_CARDS } from '../../systems/card/CardData';
 import { CardDisplay } from '../components/CardDisplay';
 import { Button } from '../components/Button';
 
@@ -20,6 +20,11 @@ export class DeckViewScene extends Phaser.Scene {
     private cardsPerPage: number = 10;
     private currentFilter: string = 'all';
     private currentSort: string = 'cost';
+
+    // 地牌管理按钮和文本
+    private landCountText: Phaser.GameObjects.Text | null = null;
+    private addLandButton: Button | null = null;
+    private removeLandButton: Button | null = null;
 
     constructor() {
         super('DeckViewScene');
@@ -118,7 +123,8 @@ export class DeckViewScene extends Phaser.Scene {
             { id: 'all', text: '全部' },
             { id: 'attack', text: '攻击' },
             { id: 'skill', text: '技能' },
-            { id: 'power', text: '能力' }
+            { id: 'power', text: '能力' },
+            { id: 'land', text: '地牌' }
         ];
 
         const buttonWidth = 100;
@@ -341,6 +347,7 @@ export class DeckViewScene extends Phaser.Scene {
             if (buttonText === '攻击') filterId = 'attack';
             else if (buttonText === '技能') filterId = 'skill';
             else if (buttonText === '能力') filterId = 'power';
+            else if (buttonText === '地牌') filterId = 'land';
 
             if (filterId === this.currentFilter) {
                 button.setBackgroundColor(0x28a745);
@@ -350,6 +357,14 @@ export class DeckViewScene extends Phaser.Scene {
                 button.setHoverColor(0x5a6268);
             }
         });
+
+        // 清除地牌管理按钮和文本
+        this.clearLandManagementUI();
+
+        // 如果选中了地牌过滤器，显示地牌管理按钮
+        if (filter === 'land') {
+            this.showLandManagementUI();
+        }
 
         this.displayCards();
     }
@@ -374,6 +389,198 @@ export class DeckViewScene extends Phaser.Scene {
         if (this.currentPage < totalPages - 1) {
             this.currentPage++;
             this.displayCards();
+        }
+    }
+
+    /**
+     * 显示地牌管理UI
+     */
+    private showLandManagementUI(): void {
+        // 计算当前地牌数量
+        const landCards = this.cards.filter(c => c.type.toLowerCase() === 'land');
+        const landCount = landCards.length;
+
+        // 显示地牌数量
+        this.landCountText = this.add.text(
+            gameConfig.WIDTH / 2,
+            120,
+            `当前地牌数量: ${landCount}`,
+            {
+                fontSize: '24px',
+                color: '#ffffff',
+                fontStyle: 'bold'
+            }
+        ).setOrigin(0.5);
+
+        // 添加增加地牌按钮
+        this.addLandButton = new Button(this, {
+            x: gameConfig.WIDTH / 2 - 100,
+            y: 120 + 40,
+            width: 150,
+            height: 40,
+            text: '增加地牌',
+            backgroundColor: 0x28a745,
+            hoverColor: 0x218838,
+            borderRadius: 10,
+            onClick: () => {
+                this.addLandCard();
+            }
+        });
+
+        // 添加减少地牌按钮
+        this.removeLandButton = new Button(this, {
+            x: gameConfig.WIDTH / 2 + 100,
+            y: 120 + 40,
+            width: 150,
+            height: 40,
+            text: '减少地牌',
+            backgroundColor: 0xdc3545,
+            hoverColor: 0xc82333,
+            borderRadius: 10,
+            onClick: () => {
+                this.removeLandCard();
+            }
+        });
+    }
+
+    /**
+     * 清除地牌管理UI
+     */
+    private clearLandManagementUI(): void {
+        if (this.landCountText) {
+            this.landCountText.destroy();
+            this.landCountText = null;
+        }
+
+        if (this.addLandButton) {
+            this.addLandButton.destroy();
+            this.addLandButton = null;
+        }
+
+        if (this.removeLandButton) {
+            this.removeLandButton.destroy();
+            this.removeLandButton = null;
+        }
+    }
+
+    /**
+     * 添加地牌
+     */
+    private addLandCard(): void {
+        // 找到基础地牌数据，用于添加地牌
+        let landTemplate = this.cards.find(c => c.type.toLowerCase() === 'land');
+
+        if (!landTemplate) {
+            // 如果没有地牌，从 BASE_CARDS 中找到基础地牌
+            landTemplate = BASE_CARDS.find(c => c.id === 'basic_land');
+            if (!landTemplate) {
+                console.error('DeckViewScene: 无法找到基础地牌数据');
+                return;
+            }
+        }
+
+        // 添加地牌到牌组
+        this.stateManager.addCard({ ...landTemplate });
+
+        // 重新加载牌组
+        this.loadDeck();
+
+        // 更新地牌数量显示
+        const newLandCount = this.cards.filter(c => c.type.toLowerCase() === 'land').length;
+        if (this.landCountText) {
+            this.landCountText.setText(`当前地牌数量: ${newLandCount}`);
+        }
+
+        // 重新显示卡牌
+        this.displayCards();
+
+        console.log(`DeckViewScene: 增加地牌，当前地牌数量: ${newLandCount}`);
+    }
+
+    /**
+     * 查找基础地牌
+     * @param landCards 地牌数组
+     * @returns 基础地牌数组
+     */
+    private findBasicLandCards(landCards: CardData[]): CardData[] {
+        // 只返回基础地牌（id为'basic_land'）
+        return landCards.filter(card => card.id === 'basic_land');
+    }
+
+    /**
+     * 移除地牌
+     */
+    private removeLandCard(): void {
+        // 获取所有地牌
+        const landCards = this.cards.filter(c => c.type.toLowerCase() === 'land');
+
+        // 如果没有任何地牌，显示没有地牌可移除的提示
+        if (landCards.length === 0) {
+            console.log('DeckViewScene: 没有地牌可以移除');
+
+            // 显示提示信息
+            const infoText = this.add.text(
+                gameConfig.WIDTH / 2,
+                gameConfig.HEIGHT / 2 - 100,
+                '没有地牌可以移除',
+                {
+                    fontSize: '24px',
+                    color: '#ff0000',
+                    backgroundColor: '#000000',
+                    padding: { x: 10, y: 5 }
+                }
+            ).setOrigin(0.5);
+
+            // 3秒后自动消失
+            this.time.delayedCall(3000, () => {
+                infoText.destroy();
+            });
+            return;
+        }
+
+        // 只查找基础地牌（id为'basic_land'）
+        const basicLandCards = this.findBasicLandCards(landCards);
+
+        if (basicLandCards.length > 0) {
+            // 移除一张基础地牌
+            const cardToRemove = basicLandCards[0];
+            this.stateManager.removeCard(cardToRemove.id);
+
+            console.log(`DeckViewScene: 移除基础地牌 ${cardToRemove.name}`);
+
+            // 重新加载牌组
+            this.loadDeck();
+
+            // 更新地牌数量显示
+            const newLandCount = this.cards.filter(c => c.type.toLowerCase() === 'land').length;
+            if (this.landCountText) {
+                this.landCountText.setText(`当前地牌数量: ${newLandCount}`);
+            }
+
+            // 重新显示卡牌
+            this.displayCards();
+
+            console.log(`DeckViewScene: 减少地牌，当前地牌数量: ${newLandCount}`);
+        } else {
+            console.log('DeckViewScene: 有地牌但没有基础地牌可以移除，只能移除基础地牌');
+
+            // 显示提示信息
+            const infoText = this.add.text(
+                gameConfig.WIDTH / 2,
+                gameConfig.HEIGHT / 2 - 100,
+                '只能移除基础地牌，高级和稀有地牌不能移除',
+                {
+                    fontSize: '24px',
+                    color: '#ff0000',
+                    backgroundColor: '#000000',
+                    padding: { x: 10, y: 5 }
+                }
+            ).setOrigin(0.5);
+
+            // 3秒后自动消失
+            this.time.delayedCall(3000, () => {
+                infoText.destroy();
+            });
         }
     }
 
@@ -426,14 +633,153 @@ export class DeckViewScene extends Phaser.Scene {
                 overlay.destroy();
                 cardDisplay.destroy();
                 closeButton.destroy();
+                if (addButton) addButton.destroy();
+                if (removeButton) removeButton.destroy();
+                if (countText) countText.destroy();
             }
         });
+
+        // 如果是地牌，添加增加和减少按钮
+        let addButton: Button | null = null;
+        let removeButton: Button | null = null;
+        let countText: Phaser.GameObjects.Text | null = null;
+
+        if (card.type.toLowerCase() === 'land') {
+            // 计算当前地牌数量
+            const landCards = this.cards.filter(c => c.type.toLowerCase() === 'land');
+            const landCount = landCards.length;
+
+            // 显示地牌数量
+            countText = this.add.text(
+                gameConfig.WIDTH / 2,
+                gameConfig.HEIGHT / 2 + 200,
+                `当前地牌数量: ${landCount}`,
+                {
+                    fontSize: '24px',
+                    color: '#ffffff'
+                }
+            ).setOrigin(0.5);
+
+            // 添加增加地牌按钮
+            addButton = new Button(this, {
+                x: gameConfig.WIDTH / 2 - 100,
+                y: gameConfig.HEIGHT / 2 + 250,
+                width: 150,
+                height: 40,
+                text: '增加地牌',
+                backgroundColor: 0x28a745,
+                hoverColor: 0x218838,
+                borderRadius: 10,
+                onClick: () => {
+                    // 添加地牌到牌组
+                    this.stateManager.addCard({ ...card });
+
+                    // 重新加载牌组
+                    this.loadDeck();
+
+                    // 更新地牌数量显示
+                    const newLandCount = this.cards.filter(c => c.type.toLowerCase() === 'land').length;
+                    if (countText) {
+                        countText.setText(`当前地牌数量: ${newLandCount}`);
+                    }
+
+                    console.log(`DeckViewScene: 增加地牌，当前地牌数量: ${newLandCount}`);
+                }
+            });
+
+            // 添加减少地牌按钮
+            removeButton = new Button(this, {
+                x: gameConfig.WIDTH / 2 + 100,
+                y: gameConfig.HEIGHT / 2 + 250,
+                width: 150,
+                height: 40,
+                text: '减少地牌',
+                backgroundColor: 0xdc3545,
+                hoverColor: 0xc82333,
+                borderRadius: 10,
+                onClick: () => {
+                    // 获取所有地牌
+                    const landCards = this.cards.filter(c => c.type.toLowerCase() === 'land');
+
+                    // 如果没有任何地牌，显示没有地牌可移除的提示
+                    if (landCards.length === 0) {
+                        console.log('DeckViewScene: 没有地牌可以移除');
+
+                        // 显示提示信息
+                        const warningText = this.add.text(
+                            gameConfig.WIDTH / 2,
+                            gameConfig.HEIGHT / 2 + 150,
+                            '没有地牌可以移除',
+                            {
+                                fontSize: '20px',
+                                color: '#ff0000',
+                                backgroundColor: '#000000',
+                                padding: { x: 10, y: 5 }
+                            }
+                        ).setOrigin(0.5);
+
+                        // 2秒后自动消失
+                        this.time.delayedCall(2000, () => {
+                            warningText.destroy();
+                        });
+                        return;
+                    }
+
+                    // 只查找基础地牌（id为'basic_land'）
+                    const basicLandCards = this.findBasicLandCards(landCards);
+
+                    if (basicLandCards.length > 0) {
+                        // 移除一张基础地牌
+                        const cardToRemove = basicLandCards[0];
+                        this.stateManager.removeCard(cardToRemove.id);
+
+                        console.log(`DeckViewScene: 移除基础地牌 ${cardToRemove.name}`);
+
+                        // 重新加载牌组
+                        this.loadDeck();
+
+                        // 更新地牌数量显示
+                        const newLandCount = this.cards.filter(c => c.type.toLowerCase() === 'land').length;
+                        if (countText) {
+                            countText.setText(`当前地牌数量: ${newLandCount}`);
+                        }
+
+                        console.log(`DeckViewScene: 减少地牌，当前地牌数量: ${newLandCount}`);
+                    } else {
+                        console.log('DeckViewScene: 有地牌但没有基础地牌可以移除，只能移除基础地牌');
+
+                        // 显示提示信息
+                        const warningText = this.add.text(
+                            gameConfig.WIDTH / 2,
+                            gameConfig.HEIGHT / 2 + 150,
+                            '只能移除基础地牌',
+                            {
+                                fontSize: '20px',
+                                color: '#ff0000',
+                                backgroundColor: '#000000',
+                                padding: { x: 10, y: 5 }
+                            }
+                        ).setOrigin(0.5);
+
+                        // 2秒后自动消失
+                        this.time.delayedCall(2000, () => {
+                            warningText.destroy();
+                        });
+                    }
+                }
+            });
+        }
 
         // 点击背景关闭详情
         overlay.on('pointerdown', () => {
             overlay.destroy();
             cardDisplay.destroy();
             closeButton.destroy();
+            if (addButton) addButton.destroy();
+            if (removeButton) removeButton.destroy();
+            if (countText) countText.destroy();
         });
     }
+
+
 }

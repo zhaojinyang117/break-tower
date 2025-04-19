@@ -108,5 +108,55 @@ export const BASE_CARDS: CardData[] = [
                 value: 2
             }
         ]
+    },
+    // 地牌
+    {
+        id: 'basic_land',
+        name: '基础地牌',
+        type: CardType.LAND,
+        cost: 0,  // 地牌不需要消耗能量
+        rarity: Rarity.STARTER,
+        target: TargetType.NONE,
+        description: '使用后获得1点能量。每回合只能使用一张地牌。',
+        effects: [
+            {
+                type: EffectType.ENERGY,
+                value: 1
+            }
+        ]
+    },
+    {
+        id: 'advanced_land',
+        name: '高级地牌',
+        type: CardType.LAND,
+        cost: 0,
+        rarity: Rarity.UNCOMMON,
+        target: TargetType.NONE,
+        description: '使用后获得1点能量并抽1张牌。每回合只能使用一张地牌。',
+        effects: [
+            {
+                type: EffectType.ENERGY,
+                value: 1
+            },
+            {
+                type: EffectType.DRAW,
+                value: 1
+            }
+        ]
+    },
+    {
+        id: 'rare_land',
+        name: '稀有地牌',
+        type: CardType.LAND,
+        cost: 0,
+        rarity: Rarity.RARE,
+        target: TargetType.NONE,
+        description: '使用后获得2点能量。每回合只能使用一张地牌。',
+        effects: [
+            {
+                type: EffectType.ENERGY,
+                value: 2
+            }
+        ]
     }
 ];

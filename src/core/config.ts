@@ -15,9 +15,9 @@ export const gameConfig: GameConfig = {
     // 玩家设置
     PLAYER: {
         STARTING_HP: 80,
-        STARTING_ENERGY: 3,
+        STARTING_ENERGY: 1,  // 默认能量从3改为1，类似万智牌
         HAND_SIZE: 5,
-        MAX_HAND_SIZE: 10
+        MAX_HAND_SIZE: 7  // 手牌上限从10改为7，超过时需要弃牌
     },
 
     // 敌人设置

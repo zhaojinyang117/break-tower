@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { gameConfig } from '../../core/config';
+import { CardType } from '../../core/types';
 import Player from '../../entities/Player';
 import Enemy from '../../entities/Enemy';
 import { DeckManager } from '../card/DeckManager';
@@ -90,48 +91,95 @@ export class TurnManager {
      * @param cardData 卡牌数据
      */
     private onCardPlayed(cardData: CardData): void {
-        console.log(`TurnManager: 打出卡牌 ${cardData.name}`);
+        try {
+            if (!cardData) {
+                console.error('TurnManager: 卡牌数据为空');
+                return;
+            }
 
-        // 检查能量是否足够
-        if (this.player.getEnergy() < cardData.cost) {
-            console.log(`TurnManager: 能量不足，需要 ${cardData.cost} 点能量`);
-            // 将卡牌放回手牌
-            // 注意：这里不需要实现，因为卡牌已经被移除了
-            // 我们需要修改DeckManager的playCard方法
-            return;
-        }
+            console.log(`TurnManager: 打出卡牌 ${cardData.name}`);
 
-        // 扣除能量
-        this.player.useEnergy(cardData.cost);
+            // 检查当前回合状态
+            if (this.currentTurn !== TurnState.PLAYER_TURN) {
+                console.log(`TurnManager: 当前不是玩家回合，无法打出卡牌`);
+                return;
+            }
 
-        // 执行卡牌效果
-        const context: EffectContext = {
-            player: this.player,
-            enemies: this.enemies,
-            targetEnemy: this.getTargetEnemy()
-        };
+            // 检查战斗是否已结束
+            if (this.battleResult !== BattleResult.IN_PROGRESS) {
+                console.log(`TurnManager: 战斗已结束，无法打出卡牌`);
+                return;
+            }
 
-        const results = this.effectExecutor.executeEffects(cardData.effects, context);
+            // 处理地牌
+            if (cardData.type === CardType.LAND) {
+                // 如果是地牌，检查是否可以使用
+                if (!this.player.canPlayLand()) {
+                    console.log('TurnManager: 本回合已经使用过地牌，不能再使用');
+                    return;
+                }
 
-        // 处理效果结果
-        for (const result of results) {
-            if (result.success) {
-                console.log(`TurnManager: 效果执行成功 - ${result.message}`);
+                // 标记地牌已使用
+                this.player.playLand();
 
-                // 处理抽牌效果
-                if (result.cardsDrawn) {
-                    this.deckManager.drawCard(result.cardsDrawn);
+                // 增加能量上限
+                this.player.increaseMaxEnergy(1); // 每张地牌增加能量上限1点
+                console.log('TurnManager: 成功使用地牌，能量上限+1');
+
+                // 找到手牌中的地牌卡牌精灵，并横置它们
+                const deckManager = this.deckManager;
+                const handCards = deckManager.getHand();
+
+                for (const cardSprite of handCards) {
+                    const spriteCardData = (cardSprite as any).getCardData();
+                    if (spriteCardData && spriteCardData.type === CardType.LAND) {
+                        // 横置地牌
+                        deckManager.tapCard(cardSprite);
+                    }
                 }
             } else {
-                console.log(`TurnManager: 效果执行失败 - ${result.message}`);
+                // 非地牌需要消耗能量
+                this.player.useEnergy(cardData.cost);
+                console.log(`TurnManager: 扣除 ${cardData.cost} 点能量，剩余 ${this.player.getEnergy()} 点`);
             }
+
+            // 执行卡牌效果
+            const context: EffectContext = {
+                player: this.player,
+                enemies: this.enemies,
+                targetEnemy: this.getTargetEnemy()
+            };
+
+            try {
+                const results = this.effectExecutor.executeEffects(cardData.effects, context);
+
+                // 处理效果结果
+                for (const result of results) {
+                    if (result.success) {
+                        console.log(`TurnManager: 效果执行成功 - ${result.message}`);
+
+                        // 处理抽牌效果
+                        if (result.cardsDrawn) {
+                            this.deckManager.drawCard(result.cardsDrawn);
+                        }
+                    } else {
+                        console.log(`TurnManager: 效果执行失败 - ${result.message}`);
+                    }
+                }
+
+                // 触发卡牌打出事件
+                this.triggerEvent('cardPlayed', { cardData, results });
+
+                // 检查战斗是否结束
+                this.checkBattleEnd();
+            } catch (error) {
+                console.error('TurnManager: 执行卡牌效果时出错', error);
+                // 即使出错，也触发卡牌打出事件，确保卡牌被正确处理
+                this.triggerEvent('cardPlayed', { cardData, results: [] });
+            }
+        } catch (error) {
+            console.error('TurnManager: onCardPlayed 方法出错', error);
         }
-
-        // 触发卡牌打出事件
-        this.triggerEvent('cardPlayed', { cardData, results });
-
-        // 检查战斗是否结束
-        this.checkBattleEnd();
     }
 
     /**
@@ -147,12 +195,20 @@ export class TurnManager {
         this.player.onTurnStart();
 
         // 抽卡
-        const initialHandSize = this.deckManager.getHandSize();
-        const targetHandSize = gameConfig.PLAYER.HAND_SIZE;
-        const cardsToDraw = Math.max(0, targetHandSize - initialHandSize);
+        if (this.turnNumber === 1) {
+            // 第一回合，抽满初始手牌
+            const initialHandSize = this.deckManager.getHandSize();
+            const targetHandSize = gameConfig.PLAYER.HAND_SIZE;
+            const cardsToDraw = Math.max(0, targetHandSize - initialHandSize);
 
-        if (cardsToDraw > 0) {
-            this.deckManager.drawCard(cardsToDraw);
+            if (cardsToDraw > 0) {
+                this.deckManager.drawCard(cardsToDraw);
+                console.log(`TurnManager: 第一回合抽取${cardsToDraw}张牌，填满初始手牌`);
+            }
+        } else {
+            // 后续回合，每回合固定抽1张牌（除非有特殊效果）
+            this.deckManager.drawCard(1);
+            console.log('TurnManager: 回合开始抽取1张牌');
         }
 
         // 启用卡牌交互

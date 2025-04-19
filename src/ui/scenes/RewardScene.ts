@@ -19,6 +19,9 @@ export class RewardScene extends Phaser.Scene {
     private goldReward: number = 0;
     private cardDisplays: CardDisplay[] = [];
     private continueButton!: Button;
+    private selectedCard: CardData | null = null;
+    private selectedCardDisplay: CardDisplay | null = null;
+    private selectedText: Phaser.GameObjects.Text | null = null;
 
     constructor() {
         super('RewardScene');
@@ -259,16 +262,70 @@ export class RewardScene extends Phaser.Scene {
         const card = cardDisplay.getCardData();
         console.log(`RewardScene: 选择卡牌 ${card.name}`);
 
+        // 如果已经选中了这张卡牌，取消选中
+        if (this.selectedCardDisplay === cardDisplay) {
+            // 恢复卡牌的缩放
+            cardDisplay.setScale(gameConfig.CARD.SCALE.DEFAULT);
+            // 取消选中状态（移除黄色边框）
+            cardDisplay.setSelected(false);
+
+            // 如果已经添加到卡组，先移除
+            if (this.selectedCard) {
+                this.stateManager.removeCard(this.selectedCard.id);
+            }
+
+            // 清除选中提示文本
+            if (this.selectedText) {
+                this.selectedText.destroy();
+                this.selectedText = null;
+            }
+
+            // 重置选中状态
+            this.selectedCard = null;
+            this.selectedCardDisplay = null;
+
+            // 隐藏继续按钮，显示跳过按钮
+            this.continueButton.setVisible(false);
+            this.children.getAll().forEach(child => {
+                if (child instanceof Button && child.text.text === '跳过卡牌') {
+                    child.setVisible(true);
+                }
+            });
+
+            console.log(`RewardScene: 取消选择卡牌 ${card.name}`);
+            return;
+        }
+
+        // 如果之前选中了其他卡牌，先取消选中
+        if (this.selectedCardDisplay) {
+            // 恢复之前选中卡牌的缩放
+            this.selectedCardDisplay.setScale(gameConfig.CARD.SCALE.DEFAULT);
+            // 取消选中状态（移除黄色边框）
+            this.selectedCardDisplay.setSelected(false);
+
+            // 如果已经添加到卡组，先移除
+            if (this.selectedCard) {
+                this.stateManager.removeCard(this.selectedCard.id);
+            }
+
+            // 清除选中提示文本
+            if (this.selectedText) {
+                this.selectedText.destroy();
+                this.selectedText = null;
+            }
+        }
+
+        // 设置新选中的卡牌
+        this.selectedCard = card;
+        this.selectedCardDisplay = cardDisplay;
+
         // 添加卡牌到卡组
         this.stateManager.addCard(card);
 
-        // 禁用所有卡牌交互
-        this.cardDisplays.forEach(display => {
-            display.setInteractive(false);
-        });
-
         // 高亮选中的卡牌
         cardDisplay.setScale(gameConfig.CARD.SCALE.HOVER);
+        // 显示黄色边框
+        cardDisplay.setSelected(true);
 
         // 显示继续按钮，隐藏跳过按钮
         this.continueButton.setVisible(true);
@@ -279,7 +336,7 @@ export class RewardScene extends Phaser.Scene {
         });
 
         // 显示选择提示
-        this.add.text(gameConfig.WIDTH / 2, gameConfig.HEIGHT - 150, `已选择: ${card.name}`, {
+        this.selectedText = this.add.text(gameConfig.WIDTH / 2, gameConfig.HEIGHT - 150, `已选择: ${card.name}`, {
             fontSize: '24px',
             color: '#ffffff'
         }).setOrigin(0.5);

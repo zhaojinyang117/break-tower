@@ -28,10 +28,13 @@ export class CardDisplay extends Phaser.GameObjects.Container {
     private nameText: Phaser.GameObjects.Text;
     private costText: Phaser.GameObjects.Text;
     private descriptionText: Phaser.GameObjects.Text;
+    private selectionBorder: Phaser.GameObjects.Graphics | null = null;
     private config: CardDisplayConfig;
     private defaultScale: number;
     private isHovering: boolean = false;
     private isDragging: boolean = false;
+    private isSelected: boolean = false;
+    private isTapped: boolean = false;
     private startPosition: { x: number, y: number } = { x: 0, y: 0 };
 
     /**
@@ -90,12 +93,12 @@ export class CardDisplay extends Phaser.GameObjects.Container {
     private createBackground(): Phaser.GameObjects.Sprite {
         // 确定卡牌纹理
         let textureKey = 'card';
-        
+
         // 根据卡牌类型选择纹理
         if (this.scene.textures.exists(`card_${this.cardData.type}`)) {
             textureKey = `card_${this.cardData.type}`;
         }
-        
+
         // 如果有特定卡牌纹理，使用特定纹理
         if (this.scene.textures.exists(`card_${this.cardData.id}`)) {
             textureKey = `card_${this.cardData.id}`;
@@ -305,12 +308,12 @@ export class CardDisplay extends Phaser.GameObjects.Container {
         // 更新卡牌背景
         // 确定卡牌纹理
         let textureKey = 'card';
-        
+
         // 根据卡牌类型选择纹理
         if (this.scene.textures.exists(`card_${cardData.type}`)) {
             textureKey = `card_${cardData.type}`;
         }
-        
+
         // 如果有特定卡牌纹理，使用特定纹理
         if (this.scene.textures.exists(`card_${cardData.id}`)) {
             textureKey = `card_${cardData.id}`;
@@ -378,6 +381,109 @@ export class CardDisplay extends Phaser.GameObjects.Container {
      */
     setOnDragEnd(callback: (card: CardDisplay) => void): this {
         this.config.onDragEnd = callback;
+        return this;
+    }
+
+    /**
+     * 设置卡牌选中状态
+     * @param selected 是否选中
+     */
+    setSelected(selected: boolean): this {
+        if (this.isSelected === selected) return this;
+
+        this.isSelected = selected;
+
+        // 如果选中，显示黄色边框
+        if (selected) {
+            // 如果边框不存在，创建边框
+            if (!this.selectionBorder) {
+                this.selectionBorder = this.scene.add.graphics();
+                this.add(this.selectionBorder);
+            }
+
+            // 清除之前的边框
+            this.selectionBorder.clear();
+
+            // 绘制黄色边框
+            this.selectionBorder.lineStyle(4, 0xffff00, 1);
+            this.selectionBorder.strokeRoundedRect(
+                -gameConfig.CARD.WIDTH / 2 - 2,
+                -gameConfig.CARD.HEIGHT / 2 - 2,
+                gameConfig.CARD.WIDTH + 4,
+                gameConfig.CARD.HEIGHT + 4,
+                10
+            );
+
+            // 添加闪烁动画
+            this.scene.tweens.add({
+                targets: this.selectionBorder,
+                alpha: 0.5,
+                duration: 500,
+                yoyo: true,
+                repeat: -1
+            });
+        } else {
+            // 如果取消选中，隐藏边框
+            if (this.selectionBorder) {
+                // 停止动画
+                this.scene.tweens.killTweensOf(this.selectionBorder);
+                // 清除边框
+                this.selectionBorder.clear();
+            }
+        }
+
+        return this;
+    }
+
+    /**
+     * 设置卡牌横置状态（用于地牌）
+     * @param tapped 是否横置
+     */
+    setTapped(tapped: boolean): this {
+        if (this.isTapped === tapped) return this;
+
+        this.isTapped = tapped;
+
+        if (tapped) {
+            // 横置卡牌（旋转90度）
+            this.scene.tweens.add({
+                targets: this,
+                angle: 90,
+                duration: 300,
+                ease: 'Power2'
+            });
+
+            // 降低不透明度，表示已使用
+            this.scene.tweens.add({
+                targets: this,
+                alpha: 0.7,
+                duration: 300
+            });
+
+            // 禁用交互
+            this.disableInteractive();
+        } else {
+            // 恢复卡牌方向
+            this.scene.tweens.add({
+                targets: this,
+                angle: 0,
+                duration: 300,
+                ease: 'Power2'
+            });
+
+            // 恢复透明度
+            this.scene.tweens.add({
+                targets: this,
+                alpha: 1,
+                duration: 300
+            });
+
+            // 启用交互（如果配置中允许交互）
+            if (this.config.interactive) {
+                super.setInteractive({ useHandCursor: true });
+            }
+        }
+
         return this;
     }
 }

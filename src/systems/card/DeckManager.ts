@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { gameConfig } from '../../core/config';
+import { CardType } from '../../core/types';
 import { CardData } from './CardData';
 import { CardManager } from './CardManager';
 
@@ -70,12 +71,6 @@ export class DeckManager {
         let drawnCount = 0;
 
         for (let i = 0; i < count; i++) {
-            // 检查手牌是否已达上限
-            if (this.hand.length >= this.maxHandSize) {
-                console.log('DeckManager: 手牌已满，无法抽取更多卡牌');
-                break;
-            }
-
             // 如果抽牌堆为空，将弃牌堆洗回抽牌堆
             if (this.drawPile.length === 0) {
                 if (this.discardPile.length === 0) {
@@ -109,11 +104,42 @@ export class DeckManager {
                 onComplete: () => {
                     // 重新排列手牌
                     this.arrangeHand();
+
+                    // 检查手牌数量是否超过上限
+                    this.checkHandSize();
                 }
             });
         }
 
         return drawnCount;
+    }
+
+    /**
+     * 检查手牌数量
+     * 如果手牌数量超过上限，切换到弃牌场景
+     */
+    private checkHandSize(): void {
+        if (this.hand.length > this.maxHandSize) {
+            console.log(`DeckManager: 手牌数量(${this.hand.length})超过上限(${this.maxHandSize})，需要弃牌`);
+
+            // 获取手牌数据
+            const handCards: CardData[] = this.hand.map(cardSprite => (cardSprite as any).getCardData());
+
+            // 计算需要弃掉的牌数量
+            const cardsToDiscard = this.hand.length - this.maxHandSize;
+
+            // 暂停当前场景
+            const currentScene = this.scene.scene.key;
+            this.scene.scene.pause();
+
+            // 启动弃牌场景
+            this.scene.scene.launch('DiscardScene', {
+                cards: handCards,
+                deckManager: this,
+                returnScene: currentScene,
+                cardsToDiscard: cardsToDiscard
+            });
+        }
     }
 
     /**
@@ -216,30 +242,59 @@ export class DeckManager {
      * @returns 是否成功打出
      */
     playCard(cardSprite: Phaser.GameObjects.Sprite): boolean {
-        // 获取卡牌数据
-        const cardData = (cardSprite as any).getCardData();
-        if (!cardData) return false;
+        try {
+            // 获取卡牌数据
+            const cardData = (cardSprite as any).getCardData();
+            if (!cardData) {
+                console.log('DeckManager: 卡牌数据不存在');
+                return false;
+            }
 
-        // 从手牌中移除卡牌
-        const cardIndex = this.hand.indexOf(cardSprite);
-        if (cardIndex === -1) return false;
+            // 从手牌中移除卡牌
+            const cardIndex = this.hand.indexOf(cardSprite);
+            if (cardIndex === -1) {
+                console.log('DeckManager: 卡牌不在手牌中');
+                return false;
+            }
 
-        // 触发卡牌打出事件
-        // 注意：这里不会移除卡牌，而是在回调中判断能量是否足够
-        if (this.onCardPlayed) {
-            // 先触发回调，让TurnManager判断能量是否足够
-            this.onCardPlayed(cardData);
+            console.log(`DeckManager: 尝试打出卡牌 ${cardData.name}`);
 
-            // 如果能量不足，卡牌会回到原位置
-            if (cardData.cost > (cardSprite as any).scene.combatManager?.getPlayer().getEnergy()) {
-                // 返回原位置
+            // 获取玩家对象
+            const player = (cardSprite as any).scene.combatManager?.getPlayer();
+            if (!player) {
+                console.log('DeckManager: 无法获取玩家对象');
                 this.arrangeHand();
                 return false;
             }
 
-            // 能量足够，继续处理
+            // 地牌特殊处理
+            if (cardData.type === CardType.LAND) {
+                // 如果是地牌，检查是否可以使用
+                if (!player.canPlayLand()) {
+                    console.log('DeckManager: 本回合已经使用过地牌，不能再使用');
+                    // 返回原位置
+                    this.arrangeHand();
+                    return false;
+                }
+            } else {
+                // 非地牌需要检查能量是否足够
+                if (cardData.cost > player.getEnergy()) {
+                    console.log(`DeckManager: 能量不足，需要 ${cardData.cost} 点能量，当前只有 ${player.getEnergy()} 点`);
+                    // 返回原位置
+                    this.arrangeHand();
+                    return false;
+                }
+            }
+
+            // 能量足够，先从手牌中移除卡牌
+            console.log(`DeckManager: 卡牌 ${cardData.name} 能量足够，开始处理`);
+
+            // 从手牌中移除卡牌
             this.hand.splice(cardIndex, 1);
+            // 添加到弃牌堆
             this.discardPile.push(cardData);
+
+            console.log(`DeckManager: 卡牌 ${cardData.name} 被打出并加入弃牌堆，当前弃牌堆大小: ${this.discardPile.length}`);
 
             // 添加打出卡牌的动画
             this.scene.tweens.add({
@@ -250,11 +305,17 @@ export class DeckManager {
                 duration: 300,
                 ease: 'Power2',
                 onComplete: () => {
-                    // 销毁卡牌精灵
-                    this.cardManager.destroyCardSprite(cardSprite);
+                    try {
+                        // 销毁卡牌精灵
+                        this.cardManager.destroyCardSprite(cardSprite);
 
-                    // 重新排列手牌
-                    this.arrangeHand();
+                        // 重新排列手牌
+                        this.arrangeHand();
+
+                        console.log(`DeckManager: 卡牌 ${cardData.name} 动画完成，当前手牌数量: ${this.hand.length}`);
+                    } catch (error) {
+                        console.error('DeckManager: 卡牌动画完成回调错误', error);
+                    }
                 }
             });
 
@@ -270,12 +331,25 @@ export class DeckManager {
                 });
             }
 
-            return true;
-        }
+            // 在卡牌已经从手牌中移除并加入弃牌堆后，触发回调
+            if (this.onCardPlayed) {
+                try {
+                    this.onCardPlayed(cardData);
+                } catch (error) {
+                    console.error('DeckManager: 卡牌打出回调错误', error);
+                    // 即使回调出错，卡牌也已经被移除了
+                }
+            } else {
+                console.log('DeckManager: 没有设置卡牌打出回调');
+            }
 
-        // 如果没有设置回调，则直接返回原位置
-        this.arrangeHand();
-        return false;
+            return true;
+        } catch (error) {
+            console.error('DeckManager: playCard 方法错误', error);
+            // 出错时返回原位置
+            this.arrangeHand();
+            return false;
+        }
     }
 
     /**
@@ -293,6 +367,37 @@ export class DeckManager {
 
         this.hand = [];
         console.log('DeckManager: 弃置所有手牌');
+    }
+
+    /**
+     * 弃置指定卡牌
+     * @param cardData 要弃置的卡牌数据
+     */
+    discardCard(cardData: CardData): void {
+        // 找到要弃置的卡牌精灵
+        const cardIndex = this.hand.findIndex(cardSprite => {
+            const spriteCardData = (cardSprite as any).getCardData();
+            return spriteCardData && spriteCardData.id === cardData.id;
+        });
+
+        if (cardIndex === -1) {
+            console.log(`DeckManager: 找不到要弃置的卡牌 ${cardData.name}`);
+            return;
+        }
+
+        // 从手牌中移除卡牌
+        const cardSprite = this.hand.splice(cardIndex, 1)[0];
+
+        // 添加到弃牌堆
+        this.discardPile.push(cardData);
+
+        // 销毁卡牌精灵
+        this.cardManager.destroyCardSprite(cardSprite);
+
+        console.log(`DeckManager: 弃置卡牌 ${cardData.name}`);
+
+        // 重新排列手牌
+        this.arrangeHand();
     }
 
     /**
@@ -335,6 +440,20 @@ export class DeckManager {
     enableCardInteraction(): void {
         for (const cardSprite of this.hand) {
             this.cardManager.setCardInteractive(cardSprite, true);
+        }
+    }
+
+    /**
+     * 横置卡牌（用于地牌）
+     * @param cardSprite 卡牌精灵
+     * @param tapped 是否横置
+     */
+    tapCard(cardSprite: Phaser.GameObjects.Sprite, tapped: boolean = true): void {
+        // 检查卡牌是否有setTapped方法
+        if ((cardSprite as any).setTapped) {
+            (cardSprite as any).setTapped(tapped);
+        } else {
+            console.log('DeckManager: 卡牌精灵没有setTapped方法');
         }
     }
 

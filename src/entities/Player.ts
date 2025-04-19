@@ -34,6 +34,7 @@ export default class Player {
     // 战斗属性
     private strength: number = 0; // 力量，增加攻击伤害
     private dexterity: number = 0; // 敏捷，增加格挡值
+    private landPlayedThisTurn: boolean = false; // 本回合是否已使用地牌
 
     // UI元素
     private hpText!: Phaser.GameObjects.Text;
@@ -170,11 +171,39 @@ export default class Player {
     }
 
     /**
+     * 使用地牌
+     * @returns 是否成功使用地牌
+     */
+    playLand(): boolean {
+        // 如果本回合已经使用过地牌，则不能再使用
+        if (this.landPlayedThisTurn) {
+            console.log('Player: 本回合已经使用过地牌，不能再使用');
+            return false;
+        }
+
+        // 标记地牌已使用
+        this.landPlayedThisTurn = true;
+        console.log('Player: 成功使用地牌');
+        return true;
+    }
+
+    /**
+     * 检查是否可以使用地牌
+     * @returns 是否可以使用地牌
+     */
+    canPlayLand(): boolean {
+        return !this.landPlayedThisTurn;
+    }
+
+    /**
      * 回合开始时调用
      */
     onTurnStart(): void {
         // 重置能量
         this.currentEnergy = this.maxEnergy;
+
+        // 重置地牌使用状态
+        this.landPlayedThisTurn = false;
 
         // 处理回合开始时的效果
         this.processBuffsOnTurnStart();
@@ -596,6 +625,18 @@ export default class Player {
 
     getMaxEnergy(): number {
         return this.maxEnergy;
+    }
+
+    /**
+     * 增加能量上限
+     * @param amount 增加数值
+     */
+    increaseMaxEnergy(amount: number): void {
+        this.maxEnergy += amount;
+        // 同时增加当前能量
+        this.currentEnergy += amount;
+        console.log(`Player: 能量上限增加 ${amount} 点，现在为 ${this.maxEnergy} 点`);
+        this.updateUI();
     }
 
     getBlock(): number {
