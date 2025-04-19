@@ -1,0 +1,31 @@
+{
+    "mcpServers": {
+        "browser-tools-mcp": {
+            "command": "cmd",
+            "args": [
+                "/c",
+                "npx",
+                "-y",
+                "@agentdeskai/browser-tools-mcp@1.2.0"
+            ]
+        },
+        "stable-diffusion": {
+            "command": "node",
+            "args": [
+                "E:\\MCP\\sd-webui-mcp\\dist\\index.js"
+            ]
+        },
+        "fal-api-mcp-server": {
+            "command": "uv",
+            "args": [
+                "--directory",
+                "E:/MCP/fal_api_mcp_server",
+                "run",
+                "fal-api-mcp-server"
+            ],
+            "env": {
+                "FAL_KEY": "api_key"
+            }
+        }
+    }
+}
