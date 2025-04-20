@@ -21,7 +21,9 @@ export class MapScene extends Phaser.Scene {
     // 场景元素
     private nodeSprites: Map<string, Phaser.GameObjects.Sprite> = new Map();
     private pathGraphics: Map<string, Phaser.GameObjects.Graphics> = new Map();
-    private background!: Phaser.GameObjects.Graphics;
+    private background!: Phaser.GameObjects.Graphics; // 使用Graphics创建背景
+    private backgroundStars: Phaser.GameObjects.Graphics[] = []; // 背景星星
+    private backgroundContainer!: Phaser.GameObjects.Container; // 背景容器
 
     // 地图容器
     private mapContainer!: Phaser.GameObjects.Container;
@@ -284,19 +286,25 @@ export class MapScene extends Phaser.Scene {
         this.cameras.main.setZoom(scale);
         console.log(`MapScene: 设置相机缩放比例 - ${scale}`);
 
-        // 初始位置：显示第一层，稍微偏移，这样玩家需要拖动地图
+        // 初始位置：显示第一层，不偏移，这样玩家可以看到起始节点
         const firstLevelNodes = this.map.nodes.filter(node => node.level === 0);
         if (firstLevelNodes.length > 0) {
             // 计算第一层节点的平均X和Y位置
             const avgX = firstLevelNodes.reduce((sum, node) => sum + node.x, 0) / firstLevelNodes.length;
             const avgY = firstLevelNodes.reduce((sum, node) => sum + node.y, 0) / firstLevelNodes.length;
 
-            // 设置相机位置，使第一层节点可见，但稍微偏移
-            // 小幅度偏移相机位置，使玩家需要拖动地图才能看到所有节点
-            const offsetX = worldWidth * 0.05; // 水平偏移5%
-            const offsetY = worldHeight * 0.05; // 垂直偏移5%
-            this.cameras.main.centerOn(avgX + offsetX, avgY + offsetY);
-            console.log(`MapScene: 设置相机初始位置 - centerOn(${avgX + offsetX}, ${avgY + offsetY})`);
+            // 设置相机位置，使第一层节点居中显示
+            // 不偏移相机位置，确保玩家可以看到起始节点
+            this.cameras.main.centerOn(avgX, avgY);
+            console.log(`MapScene: 设置相机初始位置 - centerOn(${avgX}, ${avgY})`);
+
+            // 重要：确保相机位置在边界内
+            const currentX = this.cameras.main.scrollX;
+            const currentY = this.cameras.main.scrollY;
+            const clampedX = Phaser.Math.Clamp(currentX, this.minCameraX, this.maxCameraX);
+            const clampedY = Phaser.Math.Clamp(currentY, this.minCameraY, this.maxCameraY);
+            this.cameras.main.setScroll(clampedX, clampedY);
+            console.log(`MapScene: 调整相机位置到边界内 - setScroll(${clampedX}, ${clampedY})`);
         } else {
             console.warn('MapScene: 没有第一层节点，无法设置相机初始位置');
         }
@@ -310,8 +318,12 @@ export class MapScene extends Phaser.Scene {
 
         // 监听鼠标/触摸按下事件
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            // 检查是否在UI元素上
+            const isOverUI = this.isPointerOverUI(pointer);
+            console.log(`MapScene: 鼠标按下 - 是否在UI上: ${isOverUI}`);
+
             // 只有在非UI区域才启用拖动
-            if (!this.isPointerOverUI(pointer)) {
+            if (!isOverUI) {
                 this.isDragging = true;
                 this.dragStartX = pointer.x;
                 this.dragStartY = pointer.y;
@@ -362,8 +374,17 @@ export class MapScene extends Phaser.Scene {
         });
 
         // 监听鼠标/触摸释放事件
-        this.input.on('pointerup', () => {
+        this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+            // 检查是否在UI元素上
+            const isOverUI = this.isPointerOverUI(pointer);
+            console.log(`MapScene: 鼠标释放 - 是否在UI上: ${isOverUI}`);
+
             if (this.isDragging) {
+                // 如果在UI元素上释放，则不触发点击事件
+                if (isOverUI) {
+                    console.log('MapScene: 在UI元素上释放，不触发点击事件');
+                }
+
                 this.isDragging = false;
                 // 恢复默认鼠标样式
                 this.input.setDefaultCursor('default');
@@ -417,13 +438,15 @@ export class MapScene extends Phaser.Scene {
      * 检查指针是否在UI元素上
      */
     private isPointerOverUI(pointer: Phaser.Input.Pointer): boolean {
-        // 检查点击位置是否在UI容器内的元素上
+        // 只检查具体的UI元素，而不是整个UI容器
         const uiElements = [this.floorText, this.goldText, this.healthBar, this.deckButton, this.settingsButton];
         for (const element of uiElements) {
             if (element && element.getBounds().contains(pointer.x, pointer.y)) {
+                console.log(`MapScene: 指针在UI元素上: ${element.constructor.name}`);
                 return true;
             }
         }
+
         return false;
     }
 
@@ -520,41 +543,50 @@ export class MapScene extends Phaser.Scene {
         this.log('创建背景');
 
         // 创建背景容器，并设置深度为最低层
-        const backgroundContainer = this.add.container(0, 0);
-        backgroundContainer.setDepth(-10);
+        this.backgroundContainer = this.add.container(0, 0);
+        this.backgroundContainer.setDepth(-10);
+        console.log('MapScene: 创建背景容器，深度设置为-10');
+
+        // 获取屏幕尺寸
+        const screenWidth = gameConfig.WIDTH;
+        const screenHeight = gameConfig.HEIGHT;
 
         // 创建一个简单的颜色渐变背景
-        const background = this.add.graphics();
+        this.background = this.add.graphics();
 
         // 添加底色
-        background.fillGradientStyle(
+        this.background.fillGradientStyle(
             0x000022, 0x000022,
             0x000044, 0x000044,
             1
         );
-        background.fillRect(0, 0, gameConfig.WIDTH, gameConfig.HEIGHT);
+        this.background.fillRect(0, 0, screenWidth, screenHeight);
 
-        // 添加一些装饰元素（星星）
-        for (let i = 0; i < 100; i++) {
-            const x = Phaser.Math.Between(0, gameConfig.WIDTH);
-            const y = Phaser.Math.Between(0, gameConfig.HEIGHT);
+        // 将背景添加到背景容器
+        this.backgroundContainer.add(this.background);
+
+        // 添加星星装饰
+        for (let i = 0; i < 200; i++) {
+            const x = Phaser.Math.Between(0, screenWidth);
+            const y = Phaser.Math.Between(0, screenHeight);
             const radius = Phaser.Math.Between(1, 3);
             const alpha = Phaser.Math.FloatBetween(0.3, 1);
 
-            background.fillStyle(0xffffff, alpha);
-            background.fillCircle(x, y, radius);
+            // 创建一个小圆形作为星星
+            const star = this.add.graphics();
+            star.fillStyle(0xffffff, alpha);
+            star.fillCircle(x, y, radius);
+            this.backgroundStars.push(star);
+            this.backgroundContainer.add(star);
         }
 
-        // 将背景添加到背景容器
-        backgroundContainer.add(background);
-
         // 背景容器固定，不随相机移动
-        backgroundContainer.setScrollFactor(0);
+        this.backgroundContainer.setScrollFactor(0);
 
-        // 保存背景引用
-        this.background = background;
+        // 将背景容器添加到场景中，而不是被相机忽略
+        // 移除 this.cameras.main.ignore(this.backgroundContainer);
 
-        console.log('MapScene: 背景创建完成，深度设置为-10');
+        console.log('MapScene: 背景创建完成');
     }
 
     /**

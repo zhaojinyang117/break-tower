@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { gameConfig } from '../../core/config';
 import { Button } from '../components/Button';
 import { Game } from '../../core/game';
-import { GameStateType } from '../../core/types';
+import { GameStateType, NodeStatus } from '../../core/types';
 import { StateManager } from '../../state/StateManager';
 
 /**
@@ -382,8 +382,20 @@ export class SettingsScene extends Phaser.Scene {
                         console.log('SettingsScene: 重置战斗状态，当前运行状态存在');
 
                         // 重置战斗状态，确保不会跳过节点
-                        // 这里我们不做任何更改，保持地图状态不变
-                        console.log('SettingsScene: 保持地图状态不变');
+                        // 将当前节点的状态设置为可用，而不是已完成
+                        const currentNodeId = runState.map.playerPosition;
+                        if (currentNodeId) {
+                            const currentNode = runState.map.nodes.find(node => node.id === currentNodeId);
+                            if (currentNode) {
+                                console.log(`SettingsScene: 将当前节点 ${currentNodeId} 的状态设置为可用`);
+                                currentNode.status = NodeStatus.AVAILABLE; // 将节点状态设置为可用
+
+                                // 保存更新后的运行状态
+                                stateManager.setMap(runState.map);
+                                stateManager.saveCurrentRun();
+                                console.log('SettingsScene: 保存更新后的运行状态');
+                            }
+                        }
                     }
 
                     // 停止战斗场景
