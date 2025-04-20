@@ -34,12 +34,13 @@ export class MapGenerator {
         this.generatePaths(map);
         console.log(`MapGenerator: 生成路径完成，共 ${map.paths.length} 条路径`);
 
-        // 设置起始节点为玩家位置
-        const startNode = map.nodes.find(node => node.level === MapLevel.START);
-        if (startNode) {
-            map.playerPosition = startNode.id;
-            startNode.status = NodeStatus.COMPLETED;
-            console.log(`MapGenerator: 设置起始节点 ${startNode.id} 为玩家位置`);
+        // 不自动设置起始节点为玩家位置，而是留给玩家选择
+        // 检查是否有起始节点
+        const startNodes = map.nodes.filter(node => node.level === MapLevel.START);
+        if (startNodes.length > 0) {
+            console.log(`MapGenerator: 找到 ${startNodes.length} 个起始节点，等待玩家选择`);
+            // 不设置玩家位置，留空字符串
+            map.playerPosition = '';
         } else {
             console.error('MapGenerator: 未找到起始节点');
         }
@@ -247,10 +248,30 @@ export class MapGenerator {
     /**
      * 更新节点状态
      * 将起始节点的下一层节点设置为可用
+     * 如果是游戏开始，则将所有起始节点设置为可用
      * @param map 地图
      */
-    private updateNodeStatus(map: GameMap): void {
+    updateNodeStatus(map: GameMap): void {
         console.log('MapGenerator: 开始更新节点状态');
+
+        // 特殊情况：如果玩家位置为空，说明是游戏初始状态
+        // 将所有起始层节点设置为可用
+        if (!map.playerPosition) {
+            console.log('MapGenerator: 玩家位置为空，设置所有起始层节点为可用');
+
+            // 获取所有起始层节点
+            const startNodes = map.nodes.filter(node => node.level === MapLevel.START);
+            console.log(`MapGenerator: 找到 ${startNodes.length} 个起始层节点`);
+
+            // 将所有起始层节点设置为可用
+            for (const node of startNodes) {
+                node.status = NodeStatus.AVAILABLE;
+                console.log(`MapGenerator: 设置起始节点 ${node.id} 状态为 ${node.status}`);
+            }
+
+            console.log('MapGenerator: 起始节点状态更新完成');
+            return;
+        }
 
         // 获取玩家当前位置的节点
         const playerNode = map.nodes.find(node => node.id === map.playerPosition);
@@ -297,8 +318,20 @@ export class MapGenerator {
         // 计算节点间隔
         const spacing = MAP_CONFIG.UI.LEVEL_WIDTH / (count + 1);
 
-        // 计算X坐标
-        return spacing * (index + 1);
+        // 计算基本X坐标
+        let x = spacing * (index + 1);
+
+        // 添加小幅度的随机偏移，使节点分布更自然
+        // 但不要偏移太多，避免节点重叠
+        const maxOffset = spacing * 0.2; // 最大偏移为间隔的20%
+        const randomOffset = (Math.random() * 2 - 1) * maxOffset; // -maxOffset 到 +maxOffset 之间
+
+        // 对第一层和最后一层不进行偏移，保持整齐
+        if (level === MapLevel.START || level === MapLevel.BOSS) {
+            return x;
+        }
+
+        return x + randomOffset;
     }
 
     /**
@@ -307,7 +340,19 @@ export class MapGenerator {
      * @returns Y坐标
      */
     private calculateNodeY(level: MapLevel): number {
-        return MAP_CONFIG.UI.LEVEL_SPACING * level + 100;
+        // 基础Y坐标
+        const baseY = MAP_CONFIG.UI.LEVEL_SPACING * level + 150; // 增加基础偏移，给顶部留出更多空间
+
+        // 对第一层和最后一层不进行偏移，保持整齐
+        if (level === MapLevel.START || level === MapLevel.BOSS) {
+            return baseY;
+        }
+
+        // 添加小幅度的随机偏移，使节点分布更自然
+        const maxOffset = MAP_CONFIG.UI.LEVEL_SPACING * 0.1; // 最大偏移为层间距的10%
+        const randomOffset = (Math.random() * 2 - 1) * maxOffset; // -maxOffset 到 +maxOffset 之间
+
+        return baseY + randomOffset;
     }
 
     /**

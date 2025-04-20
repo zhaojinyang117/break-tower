@@ -57,7 +57,7 @@ export interface GameMap {
 export const MAP_CONFIG = {
     // 每层节点数范围
     NODE_COUNT: {
-        [MapLevel.START]: 1,            // 起始层固定1个节点
+        [MapLevel.START]: { min: 2, max: 3 },  // 起始层改为2-3个节点，允许玩家选择路线
         [MapLevel.LEVEL_1]: { min: 2, max: 3 },
         [MapLevel.LEVEL_2]: { min: 2, max: 4 },
         [MapLevel.LEVEL_3]: { min: 2, max: 4 },
@@ -101,15 +101,15 @@ export const MAP_CONFIG = {
     UI: {
         // 节点大小
         NODE_SIZE: {
-            width: 80,
-            height: 80
+            width: 60,  // 减小节点大小，使地图更紧凑
+            height: 60
         },
 
         // 层级间距
-        LEVEL_SPACING: 120,
+        LEVEL_SPACING: 200,  // 层级间距，不要太大也不要太小
 
         // 每层节点横向分布范围
-        LEVEL_WIDTH: 800
+        LEVEL_WIDTH: 1500  // 横向分布范围，不要太大也不要太小
     }
 };
 
@@ -173,7 +173,7 @@ export function getRandomNodeCount(level: MapLevel): number {
  */
 export function createNewMap(): GameMap {
     const mapId = `map_${Date.now()}`;
-    
+
     return {
         id: mapId,
         nodes: [],

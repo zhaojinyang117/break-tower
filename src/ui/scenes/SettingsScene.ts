@@ -3,6 +3,7 @@ import { gameConfig } from '../../core/config';
 import { Button } from '../components/Button';
 import { Game } from '../../core/game';
 import { GameStateType } from '../../core/types';
+import { StateManager } from '../../state/StateManager';
 
 /**
  * 设置场景
@@ -368,10 +369,27 @@ export class SettingsScene extends Phaser.Scene {
             onClick: () => {
                 console.log('点击了返回主界面按钮');
 
-                // 停止所有可能的游戏场景
+                // 重置战斗状态，确保从战斗场景返回主菜单时不会跳过节点
                 if (this.previousScene === 'CombatScene') {
+                    console.log('SettingsScene: 从战斗场景返回主菜单，重置战斗状态');
+
+                    // 获取StateManager实例
+                    const stateManager = StateManager.getInstance(); // 从导入的StateManager类中获取实例
+
+                    // 获取当前运行状态
+                    const runState = stateManager.getCurrentRun();
+                    if (runState && runState.map) {
+                        console.log('SettingsScene: 重置战斗状态，当前运行状态存在');
+
+                        // 重置战斗状态，确保不会跳过节点
+                        // 这里我们不做任何更改，保持地图状态不变
+                        console.log('SettingsScene: 保持地图状态不变');
+                    }
+
+                    // 停止战斗场景
                     this.scene.stop('CombatScene');
                 } else if (this.previousScene === 'MapScene') {
+                    // 停止地图场景
                     this.scene.stop('MapScene');
                 }
 

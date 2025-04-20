@@ -456,6 +456,11 @@ export class BootScene extends Phaser.Scene {
     private generatePlaceholderAssets() {
         console.log('BootScene: 开始生成占位资源');
 
+        // 列出当前所有纹理
+        console.log('BootScene: 当前所有纹理:');
+        const textureKeys = this.textures.getTextureKeys();
+        console.log(textureKeys);
+
         // 生成地图节点SVG - 使用与NodeType枚举匹配的值
         const nodeTypeIcons = {
             battle: '⚔️',
@@ -469,10 +474,16 @@ export class BootScene extends Phaser.Scene {
         Object.entries(nodeTypeIcons).forEach(([type, icon]) => {
             try {
                 const nodeSize = 60;
-                console.log(`BootScene: 生成节点 ${type} 纹理`);
+                console.log(`BootScene: 开始生成节点 ${type} 纹理`);
                 const nodeDataUrl = SvgGenerator.generateNodeSvg(nodeSize, nodeSize, type, 'available');
+                console.log(`BootScene: 节点 ${type} 纹理生成成功，数据 URL 长度: ${nodeDataUrl.length}`);
+
                 this.textures.addBase64(`node_${type}`, nodeDataUrl);
                 console.log(`BootScene: 添加节点 ${type} 纹理成功`);
+
+                // 检查纹理是否已添加到缓存
+                const exists = this.textures.exists(`node_${type}`);
+                console.log(`BootScene: 纹理 node_${type} ${exists ? '已添加到缓存' : '添加到缓存失败'}`);
             } catch (error) {
                 console.error(`BootScene: 生成节点 ${type} 纹理失败:`, error);
             }

@@ -4,6 +4,7 @@ import { StateManager } from '../../state/StateManager';
 import { Game } from '../../core/game';
 import { GameStateType, CardType, TargetType, Rarity, EffectType } from '../../core/types';
 import { BASE_CARDS } from '../../systems/card/CardData';
+import { MapGenerator } from '../../systems/map/MapGenerator';
 
 export class MainMenuScene extends Phaser.Scene {
     private title!: Phaser.GameObjects.Text;
@@ -307,6 +308,26 @@ export class MainMenuScene extends Phaser.Scene {
 
                 // 创建新的运行状态
                 this.stateManager.createNewRun('玩家', 80, fullDeck);
+
+                // 创建地图生成器
+                const mapGenerator = new MapGenerator();
+                console.log('MainMenuScene: 创建地图生成器');
+
+                // 生成新地图
+                try {
+                    const newMap = mapGenerator.generateMap();
+                    console.log('MainMenuScene: 生成新地图成功');
+
+                    // 设置地图到运行状态
+                    this.stateManager.setMap(newMap);
+                    console.log('MainMenuScene: 设置地图到运行状态');
+                } catch (error) {
+                    console.error('MainMenuScene: 生成地图失败:', error);
+                }
+
+                // 保存新的运行状态
+                await this.stateManager.saveCurrentRun();
+                console.log('MainMenuScene: 新的运行状态已保存');
 
                 // 切换到地图场景
                 this.scene.start('MapScene');
