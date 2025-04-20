@@ -2,6 +2,7 @@ import { gameConfig } from '../core/config';
 import { CardData } from '../systems/card/CardData';
 import { GameMap } from '../systems/map/MapData';
 import { createNewRunState, RunState } from './RunState';
+import { StorageManager } from './StorageManager';
 
 /**
  * 状态管理器
@@ -32,8 +33,20 @@ export class StateManager {
      */
     private constructor() {
         console.log('StateManager: 初始化');
-        // 尝试从本地存储加载状态
-        this.loadSavedRun();
+        // 尝试从存储加载状态
+        this.initializeAsync();
+    }
+
+    /**
+     * 异步初始化
+     */
+    private async initializeAsync(): Promise<void> {
+        try {
+            // 尝试加载保存的运行状态
+            await this.loadSavedRun();
+        } catch (error) {
+            console.error('StateManager: 异步初始化失败:', error);
+        }
     }
 
     /**
@@ -92,7 +105,7 @@ export class StateManager {
 
         // 自动保存
         if (gameConfig.STORAGE.AUTO_SAVE) {
-            this.saveCurrentRun();
+            void this.saveCurrentRun();
         }
 
         return true;
@@ -123,7 +136,7 @@ export class StateManager {
 
             // 自动保存
             if (gameConfig.STORAGE.AUTO_SAVE) {
-                this.saveCurrentRun();
+                void this.saveCurrentRun();
             }
         }
 
@@ -160,7 +173,7 @@ export class StateManager {
 
             // 自动保存
             if (gameConfig.STORAGE.AUTO_SAVE) {
-                this.saveCurrentRun();
+                void this.saveCurrentRun();
             }
         }
 
@@ -192,7 +205,7 @@ export class StateManager {
 
             // 自动保存
             if (gameConfig.STORAGE.AUTO_SAVE) {
-                this.saveCurrentRun();
+                void this.saveCurrentRun();
             }
         }
 
@@ -217,7 +230,7 @@ export class StateManager {
 
         // 自动保存
         if (gameConfig.STORAGE.AUTO_SAVE) {
-            this.saveCurrentRun();
+            void this.saveCurrentRun();
         }
 
         return true;
@@ -244,7 +257,7 @@ export class StateManager {
 
         // 自动保存
         if (gameConfig.STORAGE.AUTO_SAVE) {
-            this.saveCurrentRun();
+            void this.saveCurrentRun();
         }
 
         return true;
@@ -283,7 +296,7 @@ export class StateManager {
 
         // 自动保存
         if (gameConfig.STORAGE.AUTO_SAVE) {
-            this.saveCurrentRun();
+            void this.saveCurrentRun();
         }
     }
 
@@ -291,21 +304,24 @@ export class StateManager {
      * 保存当前运行状态
      * @returns 是否成功保存
      */
-    saveCurrentRun(): boolean {
+    async saveCurrentRun(): Promise<boolean> {
         if (!this.currentRun) {
             console.warn('StateManager: 尝试保存运行状态，但当前无运行状态');
             return false;
         }
 
         try {
-            // 将运行状态转换为JSON
-            const json = JSON.stringify(this.currentRun);
+            // 使用StorageManager保存数据
+            const storageManager = StorageManager.getInstance();
+            const success = await storageManager.save(gameConfig.STORAGE.SAVE_KEY, this.currentRun);
 
-            // 保存到本地存储
-            localStorage.setItem(gameConfig.STORAGE.SAVE_KEY, json);
+            if (success) {
+                console.log('StateManager: 保存运行状态成功');
+            } else {
+                console.error('StateManager: 保存运行状态失败');
+            }
 
-            console.log('StateManager: 保存运行状态成功');
-            return true;
+            return success;
         } catch (error) {
             console.error('StateManager: 保存运行状态失败:', error);
             return false;
@@ -316,18 +332,16 @@ export class StateManager {
      * 加载保存的运行状态
      * @returns 是否成功加载
      */
-    loadSavedRun(): boolean {
+    async loadSavedRun(): Promise<boolean> {
         try {
-            // 从本地存储获取JSON
-            const json = localStorage.getItem(gameConfig.STORAGE.SAVE_KEY);
+            // 使用StorageManager加载数据
+            const storageManager = StorageManager.getInstance();
+            const data = await storageManager.load(gameConfig.STORAGE.SAVE_KEY);
 
-            if (!json) {
+            if (!data) {
                 console.log('StateManager: 没有找到保存的运行状态');
                 return false;
             }
-
-            // 解析JSON
-            const data = JSON.parse(json);
 
             // 设置当前运行状态
             this.currentRun = data;
@@ -345,9 +359,10 @@ export class StateManager {
     /**
      * 删除保存的运行状态
      */
-    deleteSavedRun(): void {
+    async deleteSavedRun(): Promise<void> {
         try {
-            localStorage.removeItem(gameConfig.STORAGE.SAVE_KEY);
+            const storageManager = StorageManager.getInstance();
+            await storageManager.delete(gameConfig.STORAGE.SAVE_KEY);
             this.currentRun = null;
 
             console.log('StateManager: 删除运行状态成功');
@@ -361,8 +376,9 @@ export class StateManager {
      * 检查是否有保存的运行状态
      * @returns 是否有保存的运行状态
      */
-    hasSavedRun(): boolean {
-        return localStorage.getItem(gameConfig.STORAGE.SAVE_KEY) !== null;
+    async hasSavedRun(): Promise<boolean> {
+        const storageManager = StorageManager.getInstance();
+        return await storageManager.exists(gameConfig.STORAGE.SAVE_KEY);
     }
 
     /**

@@ -58,7 +58,7 @@ module.exports = {
             directory: path.join(__dirname, 'dist'),
         },
         historyApiFallback: true,
-        port: 8083,
+        port: 8084,
         hot: true,
         open: true
     }

@@ -557,44 +557,8 @@ export class BootScene extends Phaser.Scene {
             console.error('BootScene: 生成战斗效果纹理失败:', error);
         }
 
-        // 生成更多卡牌SVG（不同能量消耗）
-        try {
-            const cardTypes = ['attack', 'defend', 'skill', 'power'];
-            const costValues = [0, 1, 2, 3];
-
-            cardTypes.forEach(type => {
-                costValues.forEach(cost => {
-                    try {
-                        const cardName = `${type.charAt(0).toUpperCase() + type.slice(1)} ${cost}`;
-                        const cardDescription = `Cost ${cost}: This is a ${type} card with ${cost} energy cost.`;
-                        let cardColor = '#555555';
-
-                        switch (type) {
-                            case 'attack': cardColor = '#aa3333'; break;
-                            case 'defend': cardColor = '#3333aa'; break;
-                            case 'skill': cardColor = '#33aa33'; break;
-                            case 'power': cardColor = '#aa33aa'; break;
-                        }
-
-                        const cardDataUrl = SvgGenerator.generateCardSvg(
-                            180,
-                            250,
-                            type,
-                            cardName,
-                            cost,
-                            cardDescription
-                        );
-
-                        this.textures.addBase64(`card_${type}_${cost}`, cardDataUrl);
-                        console.log(`BootScene: 添加卡牌 ${type}_${cost} 纹理成功`);
-                    } catch (error) {
-                        console.error(`BootScene: 生成卡牌 ${type}_${cost} 纹理失败:`, error);
-                    }
-                });
-            });
-        } catch (error) {
-            console.error('BootScene: 生成扩展卡牌纹理失败:', error);
-        }
+        // 注意：不再生成卡牌纹理，避免与ui/scenes/BootScene冲突
+        // 这些纹理现在由ui/scenes/BootScene生成
 
         console.log('BootScene: 占位资源生成完成');
     }
@@ -652,4 +616,4 @@ export class BootScene extends Phaser.Scene {
             svg.appendChild(mouth as any);
         });
     }
-} 
+}

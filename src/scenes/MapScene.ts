@@ -423,7 +423,7 @@ export class MapScene extends Phaser.Scene {
         // 添加点击事件
         this.deckButton.on('pointerdown', () => {
             console.log('查看卡组');
-            // TODO: 跳转到卡组查看场景
+            this.scene.start('DeckViewScene');
         });
     }
 
@@ -619,15 +619,15 @@ export class MapScene extends Phaser.Scene {
                 break;
             case NodeType.REST:
                 console.log('进入休息场景');
-                // TODO: 实现休息场景
+                this.scene.start('RestScene', { nodeId: node.id });
                 break;
             case NodeType.EVENT:
                 console.log('进入事件场景');
-                // TODO: 实现事件场景
+                this.scene.start('EventScene', { nodeId: node.id });
                 break;
             case NodeType.SHOP:
                 console.log('进入商店场景');
-                // TODO: 实现商店场景
+                this.scene.start('ShopScene', { nodeId: node.id });
                 break;
             case NodeType.BOSS:
                 console.log('进入Boss战斗场景');
@@ -664,4 +664,4 @@ export class MapScene extends Phaser.Scene {
             default: return '未知';
         }
     }
-} 
+}

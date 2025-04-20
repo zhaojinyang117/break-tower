@@ -27,6 +27,12 @@ export default class DeckViewScene extends Phaser.Scene {
     private prevButton!: Phaser.GameObjects.Container;
     private nextButton!: Phaser.GameObjects.Container;
 
+    // 遗物相关
+    private relicDisplayContainer!: Phaser.GameObjects.Container;
+    private showRelics: boolean = false;
+    private relicButton!: Phaser.GameObjects.Container;
+    private cardButton!: Phaser.GameObjects.Container;
+
     constructor() {
         super('DeckViewScene');
     }
@@ -57,6 +63,10 @@ export default class DeckViewScene extends Phaser.Scene {
         // 创建卡牌显示容器
         this.cardDisplayContainer = this.add.container(0, 0);
 
+        // 创建遗物显示容器
+        this.relicDisplayContainer = this.add.container(0, 0);
+        this.relicDisplayContainer.setVisible(false);
+
         // 创建分页控制
         this.createPagination(deck.length);
 
@@ -67,6 +77,61 @@ export default class DeckViewScene extends Phaser.Scene {
         this.updatePaginationState(deck.length);
 
         console.log('卡组查看场景已创建');
+    }
+
+    /**
+     * 显示卡牌视图
+     */
+    private showCards(): void {
+        if (!this.showRelics) return;
+
+        // 更新按钮样式
+        (this.cardButton.getAt(0) as Phaser.GameObjects.Rectangle).setFillStyle(0x3498db);
+        (this.relicButton.getAt(0) as Phaser.GameObjects.Rectangle).setFillStyle(0x333366);
+
+        // 切换显示
+        this.cardDisplayContainer.setVisible(true);
+        this.relicDisplayContainer.setVisible(false);
+
+        // 显示分页控制
+        this.pageText.setVisible(true);
+        this.prevButton.setVisible(true);
+        this.nextButton.setVisible(true);
+
+        // 更新状态
+        this.showRelics = false;
+
+        // 更新标题
+        this.titleText.setText('卡组查看');
+    }
+
+    /**
+     * 显示遗物视图
+     */
+    private showRelicView(): void {
+        if (this.showRelics) return;
+
+        // 更新按钮样式
+        (this.cardButton.getAt(0) as Phaser.GameObjects.Rectangle).setFillStyle(0x333366);
+        (this.relicButton.getAt(0) as Phaser.GameObjects.Rectangle).setFillStyle(0x3498db);
+
+        // 切换显示
+        this.cardDisplayContainer.setVisible(false);
+        this.relicDisplayContainer.setVisible(true);
+
+        // 隐藏分页控制
+        this.pageText.setVisible(false);
+        this.prevButton.setVisible(false);
+        this.nextButton.setVisible(false);
+
+        // 更新状态
+        this.showRelics = true;
+
+        // 更新标题
+        this.titleText.setText('遗物查看');
+
+        // 显示遗物
+        this.displayRelics();
     }
 
     /**
@@ -115,6 +180,46 @@ export default class DeckViewScene extends Phaser.Scene {
 
         this.backButton.on('pointerout', () => {
             backBg.setFillStyle(0x333366);
+        });
+
+        // 创建切换按钮
+        this.createSwitchButtons();
+    }
+
+    /**
+     * 创建切换按钮（卡牌/遗物）
+     */
+    private createSwitchButtons(): void {
+        // 卡牌按钮
+        const cardBg = this.add.rectangle(0, 0, 120, 40, 0x3498db);
+        const cardText = this.add.text(0, 0, '卡牌', {
+            fontSize: '16px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+
+        this.cardButton = this.add.container(gameConfig.WIDTH / 2 - 70, 50, [cardBg, cardText]);
+        this.cardButton.setSize(120, 40);
+        this.cardButton.setInteractive();
+
+        // 添加点击事件
+        this.cardButton.on('pointerdown', () => {
+            this.showCards();
+        });
+
+        // 遗物按钮
+        const relicBg = this.add.rectangle(0, 0, 120, 40, 0x333366);
+        const relicText = this.add.text(0, 0, '遗物', {
+            fontSize: '16px',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+
+        this.relicButton = this.add.container(gameConfig.WIDTH / 2 + 70, 50, [relicBg, relicText]);
+        this.relicButton.setSize(120, 40);
+        this.relicButton.setInteractive();
+
+        // 添加点击事件
+        this.relicButton.on('pointerdown', () => {
+            this.showRelicView();
         });
     }
 
@@ -328,9 +433,86 @@ export default class DeckViewScene extends Phaser.Scene {
     }
 
     /**
+     * 显示遗物
+     */
+    private displayRelics(): void {
+        // 清除容器中的所有元素
+        this.relicDisplayContainer.removeAll(true);
+
+        // 模拟遗物数据（实际应该从运行状态中获取）
+        const relics = [
+            { id: 'burning_blood', name: '燃烧之血', description: '每场战斗结束后恢复6点生命值', icon: 0xff0000 },
+            { id: 'snake_ring', name: '蛇戒', description: '每回合开始时额外抽1张牌', icon: 0x00ff00 },
+            { id: 'happy_flower', name: '开心花', description: '每3回合获得1点能量', icon: 0xffff00 }
+        ];
+
+        // 如果没有遗物，显示提示信息
+        if (relics.length === 0) {
+            const emptyText = this.add.text(gameConfig.WIDTH / 2, gameConfig.HEIGHT / 2, '没有遗物', {
+                fontSize: '24px',
+                color: '#aaaaaa'
+            }).setOrigin(0.5);
+
+            this.relicDisplayContainer.add(emptyText);
+            return;
+        }
+
+        // 计算布局参数
+        const relicsPerRow = 4;
+        const horizontalGap = 150;
+        const verticalGap = 150;
+        const startX = (gameConfig.WIDTH - (relicsPerRow * 100 + (relicsPerRow - 1) * horizontalGap)) / 2 + 50;
+        const startY = 150;
+
+        // 创建遗物显示
+        relics.forEach((relic, index) => {
+            const row = Math.floor(index / relicsPerRow);
+            const col = index % relicsPerRow;
+
+            const x = startX + col * horizontalGap;
+            const y = startY + row * verticalGap;
+
+            // 创建遗物图标
+            const relicIcon = this.add.circle(0, 0, 30, relic.icon);
+
+            // 创建遗物名称
+            const relicName = this.add.text(0, 50, relic.name, {
+                fontSize: '16px',
+                color: '#ffffff'
+            }).setOrigin(0.5);
+
+            // 创建遗物描述
+            const relicDesc = this.add.text(0, 80, relic.description, {
+                fontSize: '12px',
+                color: '#cccccc',
+                align: 'center',
+                wordWrap: { width: 120 }
+            }).setOrigin(0.5);
+
+            // 创建遗物容器
+            const relicContainer = this.add.container(x, y, [relicIcon, relicName, relicDesc]);
+
+            // 添加交互
+            relicContainer.setInteractive(new Phaser.Geom.Rectangle(-60, -40, 120, 140), Phaser.Geom.Rectangle.Contains);
+
+            // 鼠标悬停效果
+            relicContainer.on('pointerover', () => {
+                relicIcon.setScale(1.1);
+            });
+
+            relicContainer.on('pointerout', () => {
+                relicIcon.setScale(1.0);
+            });
+
+            // 将遗物添加到容器
+            this.relicDisplayContainer.add(relicContainer);
+        });
+    }
+
+    /**
      * 处理返回按钮点击
      */
     private handleBack(): void {
         this.scene.start('MapScene');
     }
-} 
+}

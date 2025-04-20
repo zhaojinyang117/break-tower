@@ -20,6 +20,9 @@ import {
     CombatScene,
     DeckViewScene,
     RewardScene,
+    RestScene,
+    EventScene,
+    ShopScene,
     SettingsScene,
     DeveloperScene,
     DiscardScene
@@ -36,6 +39,9 @@ gameInstance.init([
     new CombatScene(),
     new DeckViewScene(),
     new RewardScene(),
+    new RestScene(),
+    new EventScene(),
+    new ShopScene(),
     new SettingsScene(),
     new DeveloperScene(),
     new DiscardScene()

@@ -4,7 +4,8 @@ export enum CardType {
     SKILL = 'skill',
     POWER = 'power',
     STATUS = 'status',
-    CURSE = 'curse'
+    CURSE = 'curse',
+    LAND = 'land'
 }
 
 // 卡牌目标类型
@@ -29,13 +30,16 @@ export enum EffectType {
     BLOCK = 'block',
     DRAW = 'draw',
     ENERGY = 'energy',
-    HEAL = 'heal'
+    HEAL = 'heal',
+    BUFF = 'buff',
+    DEBUFF = 'debuff'
 }
 
 // 卡牌效果
 export interface CardEffect {
     type: EffectType;
     value: number;
+    target?: TargetType;
 }
 
 // 卡牌数据接口
@@ -49,6 +53,8 @@ export interface CardData {
     description: string;
     effects: CardEffect[];
     imageSrc?: string;
+    upgraded?: boolean;
+    upgradedId?: string;
 }
 
 // 基础卡牌数据
@@ -132,4 +138,4 @@ export const BASE_CARDS: CardData[] = [
             }
         ]
     }
-]; 
+];

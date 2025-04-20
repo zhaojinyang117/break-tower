@@ -359,13 +359,10 @@ export class CombatScene extends Phaser.Scene {
         // 计算金币奖励
         const goldReward = this.calculateGoldReward();
 
-        // 生成卡牌奖励
-        const cardRewards = this.generateCardRewards();
-
         // 跳转到奖励场景
         this.scene.start('RewardScene', {
             gold: goldReward,
-            cards: cardRewards,
+            fromCombat: true,
             nodeId: this.nodeId,
             isElite: this.isElite,
             isBoss: this.isBoss
@@ -688,4 +685,4 @@ export class CombatScene extends Phaser.Scene {
         // 保存更新后的状态
         RunStateManager.getInstance().saveCurrentRun();
     }
-} 
+}

@@ -18,7 +18,7 @@ export class MainMenuScene extends Phaser.Scene {
         this.stateManager = StateManager.getInstance();
     }
 
-    create(): void {
+    async create(): Promise<void> {
         console.log('MainMenuScene: 创建主菜单');
 
         // 创建背景
@@ -27,11 +27,11 @@ export class MainMenuScene extends Phaser.Scene {
         // 创建标题
         this.createTitle();
 
-        // 检查是否有保存的游戏
-        this.checkSavedGame();
-
         // 创建菜单按钮
         this.createMenuButtons();
+
+        // 检查是否有保存的游戏
+        await this.checkSavedGame();
 
         // 添加过渡动画
         this.addTransitionAnimations();
@@ -112,10 +112,19 @@ export class MainMenuScene extends Phaser.Scene {
     /**
      * 检查是否有保存的游戏
      */
-    private checkSavedGame(): void {
+    private async checkSavedGame(): Promise<void> {
         // 检查是否有保存的游戏
-        this.hasSavedGame = this.stateManager.hasSavedRun();
+        this.hasSavedGame = await this.stateManager.hasSavedRun();
         console.log(`MainMenuScene: 已保存的游戏: ${this.hasSavedGame ? '是' : '否'}`);
+
+        // 更新继续游戏按钮的状态
+        if (this.continueButton) {
+            if (!this.hasSavedGame) {
+                this.continueButton.setDisabled(true);
+            } else {
+                this.continueButton.setDisabled(false);
+            }
+        }
     }
 
     /**
@@ -222,9 +231,9 @@ export class MainMenuScene extends Phaser.Scene {
             alpha: 1,
             duration: 1000,
             ease: 'Power2',
-            onComplete: () => {
+            onComplete: async () => {
                 // 删除之前的存档（如果有）
-                this.stateManager.deleteSavedRun();
+                await this.stateManager.deleteSavedRun();
 
                 // 创建新的游戏状态
                 // 创建基本的卡组
@@ -327,9 +336,9 @@ export class MainMenuScene extends Phaser.Scene {
             alpha: 1,
             duration: 1000,
             ease: 'Power2',
-            onComplete: () => {
+            onComplete: async () => {
                 // 加载保存的游戏
-                this.stateManager.loadSavedRun();
+                await this.stateManager.loadSavedRun();
 
                 // 切换到地图场景
                 this.scene.start('MapScene', { continueSavedGame: true });

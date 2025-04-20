@@ -44,7 +44,7 @@ export class BootScene extends Phaser.Scene {
         // TODO: 加载实际游戏资源
     }
 
-    create(): void {
+    async create(): Promise<void> {
         console.log('BootScene: 加载完成，准备启动游戏');
 
         // 创建占位资源，在没有美术资源的情况下使用
@@ -58,25 +58,7 @@ export class BootScene extends Phaser.Scene {
         console.log('BootScene: 获取到 StateManager 实例');
 
         // 检查是否有保存的游戏
-        const hasSavedGame = stateManager.hasSavedRun();
-        console.log('BootScene: 有保存的游戏状态:', hasSavedGame);
-
-        // 加载或创建初始运行状态
-        if (hasSavedGame) {
-            // 加载已保存的游戏状态
-            const loadSuccess = stateManager.loadSavedRun();
-            console.log('BootScene: 加载游戏状态:', loadSuccess ? '成功' : '失败');
-
-            if (!loadSuccess) {
-                // 如果加载失败，创建新的游戏状态
-                console.log('BootScene: 加载失败，创建新游戏状态');
-                this.createInitialRunState(stateManager);
-            }
-        } else {
-            // 创建新的游戏状态
-            console.log('BootScene: 没有保存的游戏状态，创建新游戏状态');
-            this.createInitialRunState(stateManager);
-        }
+        await this.initializeGameState(stateManager);
 
         // 检查运行状态的完整性
         const currentRun = stateManager.getCurrentRun();
@@ -419,10 +401,43 @@ export class BootScene extends Phaser.Scene {
     }
 
     /**
+     * 初始化游戏状态
+     * @param stateManager 状态管理器
+     */
+    private async initializeGameState(stateManager: StateManager): Promise<void> {
+        try {
+            // 检查是否有保存的游戏
+            const hasSavedGame = await stateManager.hasSavedRun();
+            console.log('BootScene: 有保存的游戏状态:', hasSavedGame);
+
+            // 加载或创建初始运行状态
+            if (hasSavedGame) {
+                // 加载已保存的游戏状态
+                const loadSuccess = await stateManager.loadSavedRun();
+                console.log('BootScene: 加载游戏状态:', loadSuccess ? '成功' : '失败');
+
+                if (!loadSuccess) {
+                    // 如果加载失败，创建新的游戏状态
+                    console.log('BootScene: 加载失败，创建新游戏状态');
+                    await this.createInitialRunState(stateManager);
+                }
+            } else {
+                // 创建新的游戏状态
+                console.log('BootScene: 没有保存的游戏状态，创建新游戏状态');
+                await this.createInitialRunState(stateManager);
+            }
+        } catch (error) {
+            console.error('BootScene: 初始化游戏状态失败:', error);
+            // 如果出错，创建新的游戏状态
+            await this.createInitialRunState(stateManager);
+        }
+    }
+
+    /**
      * 创建初始运行状态
      * @param stateManager 状态管理器
      */
-    private createInitialRunState(stateManager: StateManager): void {
+    private async createInitialRunState(stateManager: StateManager): Promise<void> {
         // 创建一个新的运行状态，使用默认玩家名称、生命值和基础卡组
         const newState = stateManager.createNewRun(
             '玩家',
@@ -432,7 +447,7 @@ export class BootScene extends Phaser.Scene {
         console.log('创建新的游戏状态:', newState ? '成功' : '失败');
 
         // 保存创建的状态
-        stateManager.saveCurrentRun();
+        await stateManager.saveCurrentRun();
     }
 
     /**
@@ -505,20 +520,12 @@ export class BootScene extends Phaser.Scene {
 
         // 生成卡牌占位SVG
         try {
-            const cardTypes = ['攻击', '防御', '技能', '能力', '地牌'];
-            const cardColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#a178df', '#8B4513'];
+            const cardTypes = ['攻击', '防御', '技能', '能力'];
 
             cardTypes.forEach((type, index) => {
                 try {
-                    let cardDescription;
-                    let cost = index + 1;
-
-                    if (type === '地牌') {
-                        cardDescription = `这是一张地牌，可以提供能量。每回合只能使用一张地牌。`;
-                        cost = 0; // 地牌没有费用
-                    } else {
-                        cardDescription = `这是一张${type}卡牌示例，可以展示${type}效果。`;
-                    }
+                    const cardDescription = `这是一张${type}卡牌示例，可以展示${type}效果。`;
+                    const cost = index + 1;
 
                     const cardDataUrl = SvgGenerator.generateCardSvg(
                         180,
@@ -534,6 +541,19 @@ export class BootScene extends Phaser.Scene {
                     console.error(`BootScene: 生成卡牌 ${type} 纹理失败:`, error);
                 }
             });
+
+            // 单独生成地牌纹理
+            const landCardDescription = `这是一张地牌，可以提供能量。每回合只能使用一张地牌。`;
+            const landCardDataUrl = SvgGenerator.generateCardSvg(
+                180,
+                250,
+                '地牌卡',
+                '地牌',
+                0,
+                landCardDescription
+            );
+            this.textures.addBase64('card_地牌', landCardDataUrl);
+            console.log('BootScene: 添加地牌纹理成功');
         } catch (error) {
             console.error('BootScene: 生成卡牌纹理失败:', error);
         }
@@ -602,7 +622,7 @@ export class BootScene extends Phaser.Scene {
 
         // 生成更多卡牌SVG（不同能量消耗）
         try {
-            const cardTypes = ['attack', 'defend', 'skill', 'power', 'land'];
+            const cardTypes = ['attack', 'defend', 'skill', 'power'];
             const costValues = [0, 1, 2, 3];
 
             cardTypes.forEach(type => {
@@ -610,22 +630,6 @@ export class BootScene extends Phaser.Scene {
                     try {
                         let cardName = `${type.charAt(0).toUpperCase() + type.slice(1)} ${cost}`;
                         let cardDescription = `Cost ${cost}: This is a ${type} card with ${cost} energy cost.`;
-                        let cardColor = '#555555';
-
-                        // 地牌特殊处理
-                        if (type === 'land') {
-                            cardName = 'Land';
-                            cardDescription = 'This is a land card that provides energy. You can only use one land card per turn.';
-                            cost = 0; // 地牌没有费用
-                        }
-
-                        switch (type) {
-                            case 'attack': cardColor = '#aa3333'; break;
-                            case 'defend': cardColor = '#3333aa'; break;
-                            case 'skill': cardColor = '#33aa33'; break;
-                            case 'power': cardColor = '#aa33aa'; break;
-                            case 'land': cardColor = '#8B4513'; break;
-                        }
 
                         const cardDataUrl = SvgGenerator.generateCardSvg(
                             180,
@@ -643,6 +647,18 @@ export class BootScene extends Phaser.Scene {
                     }
                 });
             });
+
+            // 单独生成地牌纹理
+            const landCardDataUrl = SvgGenerator.generateCardSvg(
+                180,
+                250,
+                'land',
+                'Land',
+                0,
+                'This is a land card that provides energy. You can only use one land card per turn.'
+            );
+            this.textures.addBase64('card_land_0', landCardDataUrl);
+            console.log('BootScene: 添加地牌纹理成功');
         } catch (error) {
             console.error('BootScene: 生成扩展卡牌纹理失败:', error);
         }

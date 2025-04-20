@@ -1,40 +1,41 @@
 import Phaser from 'phaser';
-import { gameConfig } from '../../core/config';
-import { StateManager } from '../../state/StateManager';
+import { gameConfig } from '../../config/gameConfig';
+import RunStateManager from '../../managers/RunStateManager';
 import { CardData, BASE_CARDS } from '../../systems/card/CardData';
 import { CardDisplay } from '../components/CardDisplay';
-import { Button } from '../components/Button';
-import { Rarity } from '../../core/types';
 
 /**
  * 奖励场景
- * 战斗胜利后显示奖励选择
+ * 战斗胜利后显示奖励选择界面
  */
 export class RewardScene extends Phaser.Scene {
-    private stateManager: StateManager;
-    private nodeId: string = '';
+    // 场景元素
+    private background!: Phaser.GameObjects.Image;
+    private titleText!: Phaser.GameObjects.Text;
+    private goldText!: Phaser.GameObjects.Text;
+    private continueButton!: Phaser.GameObjects.Container;
+
+    // 卡牌奖励
+    private cardRewards: { card: CardData, display: CardDisplay }[] = [];
+    private selectedCard: CardData | null = null;
+
+    // 状态管理
+    private runStateManager!: RunStateManager;
+    private goldReward: number = 0;
+    private fromCombat: boolean = true;
     private isElite: boolean = false;
     private isBoss: boolean = false;
-    private cardRewards: CardData[] = [];
-    private goldReward: number = 0;
-    private cardDisplays: CardDisplay[] = [];
-    private continueButton!: Button;
-    private selectedCard: CardData | null = null;
-    private selectedCardDisplay: CardDisplay | null = null;
-    private selectedText: Phaser.GameObjects.Text | null = null;
 
     constructor() {
         super('RewardScene');
-        this.stateManager = StateManager.getInstance();
     }
 
     /**
-     * 初始化场景
-     * @param data 场景数据
+     * 初始化场景数据
      */
     init(data: any): void {
-        console.log('RewardScene: 初始化场景', data);
-        this.nodeId = data.nodeId || '';
+        this.goldReward = data.gold || 0;
+        this.fromCombat = data.fromCombat !== undefined ? data.fromCombat : true;
         this.isElite = data.isElite || false;
         this.isBoss = data.isBoss || false;
     }
@@ -42,314 +43,245 @@ export class RewardScene extends Phaser.Scene {
     /**
      * 创建场景
      */
-    create(): void {
+    create(data?: any): void {
         console.log('RewardScene: 创建奖励场景');
+
+        // 初始化状态管理器
+        this.runStateManager = RunStateManager.getInstance();
 
         // 创建背景
         this.createBackground();
 
-        // 生成奖励
-        this.generateRewards();
+        // 创建标题
+        this.titleText = this.add.text(
+            gameConfig.WIDTH / 2,
+            50,
+            '战斗胜利！',
+            { fontSize: '32px', color: '#ffffff' }
+        ).setOrigin(0.5);
 
-        // 创建UI元素
-        this.createUI();
+        // 创建金币奖励显示
+        this.createGoldReward();
 
-        // 显示奖励
-        this.displayRewards();
+        // 创建卡牌奖励
+        this.createCardRewards();
+
+        // 创建继续按钮
+        this.createContinueButton();
     }
 
     /**
      * 创建背景
      */
     private createBackground(): void {
-        // 创建一个简单的颜色渐变背景
-        const background = this.add.graphics();
-
-        // 添加底色
-        background.fillGradientStyle(
-            0x002200, 0x002200,
-            0x004400, 0x004400,
-            1
-        );
-        background.fillRect(0, 0, gameConfig.WIDTH, gameConfig.HEIGHT);
+        // 创建渐变背景
+        const graphics = this.add.graphics();
+        graphics.fillGradientStyle(0x1a1a2e, 0x1a1a2e, 0x16213e, 0x16213e, 1);
+        graphics.fillRect(0, 0, gameConfig.WIDTH, gameConfig.HEIGHT);
 
         // 添加一些装饰元素
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 20; i++) {
             const x = Phaser.Math.Between(0, gameConfig.WIDTH);
             const y = Phaser.Math.Between(0, gameConfig.HEIGHT);
-            const radius = Phaser.Math.Between(1, 3);
-            const alpha = Phaser.Math.FloatBetween(0.3, 1);
+            const size = Phaser.Math.Between(1, 3);
+            const alpha = Phaser.Math.FloatBetween(0.3, 0.8);
 
-            background.fillStyle(0x55ff55, alpha);
-            background.fillCircle(x, y, radius);
+            this.add.circle(x, y, size, 0xffffff, alpha); // 星星
         }
     }
 
     /**
-     * 生成奖励
+     * 创建金币奖励显示
      */
-    private generateRewards(): void {
-        // 生成金币奖励
+    private createGoldReward(): void {
+        // 如果有金币奖励，显示并添加到玩家状态
+        if (this.goldReward > 0) {
+            // 显示金币奖励
+            this.goldText = this.add.text(
+                gameConfig.WIDTH / 2,
+                120,
+                `获得 ${this.goldReward} 金币`,
+                { fontSize: '24px', color: '#f1c40f' }
+            ).setOrigin(0.5);
+
+            // 添加金币到玩家状态
+            this.runStateManager.updateGold(this.goldReward);
+            console.log(`RewardScene: 添加 ${this.goldReward} 金币到玩家状态`);
+        }
+    }
+
+    /**
+     * 创建卡牌奖励
+     */
+    private createCardRewards(): void {
+        // 根据战斗类型决定卡牌数量和稀有度
+        let cardCount = 3;
+        let rareChance = 0.1;
+        let uncommonChance = 0.4;
+
         if (this.isElite) {
-            this.goldReward = Phaser.Math.Between(
-                gameConfig.REWARDS.GOLD_PER_ELITE.min,
-                gameConfig.REWARDS.GOLD_PER_ELITE.max
-            );
+            rareChance = 0.2;
+            uncommonChance = 0.5;
         } else if (this.isBoss) {
-            this.goldReward = Phaser.Math.Between(
-                gameConfig.REWARDS.GOLD_PER_BOSS.min,
-                gameConfig.REWARDS.GOLD_PER_BOSS.max
-            );
-        } else {
-            this.goldReward = Phaser.Math.Between(
-                gameConfig.REWARDS.GOLD_PER_BATTLE.min,
-                gameConfig.REWARDS.GOLD_PER_BATTLE.max
-            );
+            cardCount = 4;
+            rareChance = 0.4;
+            uncommonChance = 0.6;
         }
 
         // 生成卡牌奖励
-        this.generateCardRewards();
-
-        // 应用金币奖励
-        const runState = this.stateManager.getCurrentRun();
-        if (runState) {
-            this.stateManager.updateGold(this.goldReward);
-        }
-    }
-
-    /**
-     * 生成卡牌奖励
-     */
-    private generateCardRewards(): void {
-        // 确定卡牌数量
-        const cardCount = gameConfig.REWARDS.CARDS_PER_BATTLE;
-
-        // 确定卡牌稀有度分布
-        let rarityDistribution: Rarity[] = [];
-
-        if (this.isElite) {
-            // 精英战斗有更高概率获得稀有卡牌
-            rarityDistribution = [
-                Rarity.COMMON, Rarity.COMMON,
-                Rarity.UNCOMMON, Rarity.UNCOMMON,
-                Rarity.RARE
-            ];
-        } else if (this.isBoss) {
-            // Boss战斗有很高概率获得稀有卡牌
-            rarityDistribution = [
-                Rarity.UNCOMMON, Rarity.UNCOMMON,
-                Rarity.RARE, Rarity.RARE, Rarity.RARE
-            ];
-        } else {
-            // 普通战斗主要是普通卡牌
-            rarityDistribution = [
-                Rarity.COMMON, Rarity.COMMON, Rarity.COMMON,
-                Rarity.UNCOMMON, Rarity.UNCOMMON,
-                Rarity.RARE
-            ];
-        }
-
-        // 生成卡牌
+        const cards: CardData[] = [];
         for (let i = 0; i < cardCount; i++) {
-            // 随机选择稀有度
-            const rarity = rarityDistribution[Math.floor(Math.random() * rarityDistribution.length)];
+            // 决定卡牌稀有度
+            let rarity = 'common';
+            const roll = Math.random();
+            if (roll < rareChance) {
+                rarity = 'rare';
+            } else if (roll < rareChance + uncommonChance) {
+                rarity = 'uncommon';
+            }
 
-            // 从基础卡牌中筛选符合稀有度的卡牌
-            const availableCards = BASE_CARDS.filter(card => card.rarity === rarity);
+            // 从BASE_CARDS中筛选符合稀有度的卡牌
+            const availableCards = BASE_CARDS.filter(card =>
+                card.rarity.toLowerCase() === rarity &&
+                card.type.toLowerCase() !== 'land' // 排除地牌
+            );
 
             if (availableCards.length > 0) {
                 // 随机选择一张卡牌
-                const randomIndex = Math.floor(Math.random() * availableCards.length);
-                const selectedCard = { ...availableCards[randomIndex] };
-
-                // 生成唯一ID
-                selectedCard.id = `${selectedCard.id}_${Date.now()}_${i}`;
-
-                this.cardRewards.push(selectedCard);
+                const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+                cards.push({ ...randomCard });
             }
         }
+
+        // 如果没有生成足够的卡牌，补充普通卡牌
+        while (cards.length < cardCount) {
+            const commonCards = BASE_CARDS.filter(card =>
+                card.rarity.toLowerCase() === 'common' &&
+                card.type.toLowerCase() !== 'land'
+            );
+            if (commonCards.length > 0) {
+                const randomCard = commonCards[Math.floor(Math.random() * commonCards.length)];
+                cards.push({ ...randomCard });
+            } else {
+                break; // 如果没有普通卡牌可用，跳出循环
+            }
+        }
+
+        // 显示卡牌奖励
+        const startX = gameConfig.WIDTH / (cards.length + 1);
+        const spacing = gameConfig.WIDTH / (cards.length + 1);
+
+        cards.forEach((card, index) => {
+            // 创建卡牌显示
+            const cardDisplay = new CardDisplay(this, card, {
+                x: startX + index * spacing,
+                y: 300,
+                interactive: true
+            });
+            this.add.existing(cardDisplay);
+
+            // 添加点击事件
+            cardDisplay.on('pointerdown', () => {
+                this.selectCard(card, cardDisplay);
+            });
+
+            // 保存卡牌奖励信息
+            this.cardRewards.push({
+                card,
+                display: cardDisplay
+            });
+        });
+
+        // 添加说明文本
+        this.add.text(
+            gameConfig.WIDTH / 2,
+            180,
+            '选择一张卡牌添加到你的牌组',
+            { fontSize: '20px', color: '#ffffff' }
+        ).setOrigin(0.5);
     }
 
     /**
-     * 创建UI元素
+     * 创建继续按钮
      */
-    private createUI(): void {
-        // 创建标题
-        this.add.text(gameConfig.WIDTH / 2, 50, '战斗胜利！', {
-            fontSize: '48px',
-            color: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        // 创建奖励标题
-        this.add.text(gameConfig.WIDTH / 2, 120, '选择一张卡牌加入你的卡组', {
+    private createContinueButton(): void {
+        const buttonBg = this.add.rectangle(0, 0, 200, 60, 0x2ecc71);
+        const buttonText = this.add.text(0, 0, '跳过', {
             fontSize: '24px',
             color: '#ffffff'
         }).setOrigin(0.5);
 
-        // 创建金币奖励文本
-        this.add.text(gameConfig.WIDTH / 2, 160, `获得 ${this.goldReward} 金币`, {
-            fontSize: '24px',
-            color: '#ffff00'
-        }).setOrigin(0.5);
+        this.continueButton = this.add.container(
+            gameConfig.WIDTH / 2,
+            gameConfig.HEIGHT - 100,
+            [buttonBg, buttonText]
+        );
+        this.continueButton.setSize(200, 60);
+        this.continueButton.setInteractive();
 
-        // 创建跳过按钮
-        const skipButton = new Button(this, {
-            x: gameConfig.WIDTH / 2,
-            y: gameConfig.HEIGHT - 100,
-            width: 150,
-            height: 40,
-            text: '跳过卡牌',
-            backgroundColor: 0x6c757d,
-            hoverColor: 0x5a6268,
-            borderRadius: 10,
-            onClick: () => {
-                this.continueToMap();
-            }
-        });
-
-        // 创建继续按钮（初始隐藏）
-        this.continueButton = new Button(this, {
-            x: gameConfig.WIDTH / 2,
-            y: gameConfig.HEIGHT - 100,
-            width: 150,
-            height: 40,
-            text: '继续',
-            backgroundColor: 0x28a745,
-            hoverColor: 0x218838,
-            borderRadius: 10,
-            onClick: () => {
-                this.continueToMap();
-            }
-        });
-        this.continueButton.setVisible(false);
-    }
-
-    /**
-     * 显示奖励
-     */
-    private displayRewards(): void {
-        // 显示卡牌奖励
-        const cardWidth = gameConfig.CARD.WIDTH * gameConfig.CARD.SCALE.DEFAULT;
-        const cardSpacing = 50;
-        const totalWidth = this.cardRewards.length * cardWidth + (this.cardRewards.length - 1) * cardSpacing;
-        const startX = (gameConfig.WIDTH - totalWidth) / 2 + cardWidth / 2;
-
-        this.cardRewards.forEach((card, index) => {
-            const x = startX + index * (cardWidth + cardSpacing);
-            const y = gameConfig.HEIGHT / 2;
-
-            const cardDisplay = new CardDisplay(this, card, {
-                x,
-                y,
-                scale: gameConfig.CARD.SCALE.DEFAULT,
-                interactive: true,
-                draggable: false,
-                onClick: (display) => {
-                    this.onCardClick(display);
-                }
-            });
-
-            this.cardDisplays.push(cardDisplay);
+        this.continueButton.on('pointerdown', () => {
+            this.continue();
         });
     }
 
     /**
-     * 卡牌点击事件处理
-     * @param cardDisplay 卡牌显示
+     * 选择卡牌
      */
-    private onCardClick(cardDisplay: CardDisplay): void {
-        const card = cardDisplay.getCardData();
-        console.log(`RewardScene: 选择卡牌 ${card.name}`);
-
-        // 如果已经选中了这张卡牌，取消选中
-        if (this.selectedCardDisplay === cardDisplay) {
-            // 恢复卡牌的缩放
-            cardDisplay.setScale(gameConfig.CARD.SCALE.DEFAULT);
-            // 取消选中状态（移除黄色边框）
-            cardDisplay.setSelected(false);
-
-            // 如果已经添加到卡组，先移除
-            if (this.selectedCard) {
-                this.stateManager.removeCard(this.selectedCard.id);
-            }
-
-            // 清除选中提示文本
-            if (this.selectedText) {
-                this.selectedText.destroy();
-                this.selectedText = null;
-            }
-
-            // 重置选中状态
-            this.selectedCard = null;
-            this.selectedCardDisplay = null;
-
-            // 隐藏继续按钮，显示跳过按钮
-            this.continueButton.setVisible(false);
-            this.children.getAll().forEach(child => {
-                if (child instanceof Button && child.text.text === '跳过卡牌') {
-                    child.setVisible(true);
-                }
-            });
-
-            console.log(`RewardScene: 取消选择卡牌 ${card.name}`);
-            return;
-        }
-
-        // 如果之前选中了其他卡牌，先取消选中
-        if (this.selectedCardDisplay) {
-            // 恢复之前选中卡牌的缩放
-            this.selectedCardDisplay.setScale(gameConfig.CARD.SCALE.DEFAULT);
-            // 取消选中状态（移除黄色边框）
-            this.selectedCardDisplay.setSelected(false);
-
-            // 如果已经添加到卡组，先移除
-            if (this.selectedCard) {
-                this.stateManager.removeCard(this.selectedCard.id);
-            }
-
-            // 清除选中提示文本
-            if (this.selectedText) {
-                this.selectedText.destroy();
-                this.selectedText = null;
+    private selectCard(card: CardData, cardDisplay: CardDisplay): void {
+        // 如果已经选择了卡牌，取消之前的选择
+        if (this.selectedCard) {
+            // 找到之前选择的卡牌显示
+            const previousDisplay = this.cardRewards.find(reward => reward.card === this.selectedCard)?.display;
+            if (previousDisplay) {
+                previousDisplay.setSelected(false);
             }
         }
 
-        // 设置新选中的卡牌
+        // 设置新选择的卡牌
         this.selectedCard = card;
-        this.selectedCardDisplay = cardDisplay;
-
-        // 添加卡牌到卡组
-        this.stateManager.addCard(card);
-
-        // 高亮选中的卡牌
-        cardDisplay.setScale(gameConfig.CARD.SCALE.HOVER);
-        // 显示黄色边框
         cardDisplay.setSelected(true);
 
-        // 显示继续按钮，隐藏跳过按钮
-        this.continueButton.setVisible(true);
-        this.children.getAll().forEach(child => {
-            if (child instanceof Button && child.text.text === '跳过卡牌') {
-                child.setVisible(false);
-            }
-        });
+        // 更新继续按钮文本
+        const buttonText = this.continueButton.getAt(1) as Phaser.GameObjects.Text;
+        buttonText.setText('继续');
 
         // 显示选择提示
-        this.selectedText = this.add.text(gameConfig.WIDTH / 2, gameConfig.HEIGHT - 150, `已选择: ${card.name}`, {
-            fontSize: '24px',
-            color: '#ffffff'
-        }).setOrigin(0.5);
+        this.showMessage(`选择了 ${card.name}`);
     }
 
     /**
-     * 继续到地图场景
+     * 继续游戏
      */
-    private continueToMap(): void {
+    private continue(): void {
+        // 如果选择了卡牌，添加到牌组
+        if (this.selectedCard) {
+            this.runStateManager.addCard(this.selectedCard);
+            console.log(`RewardScene: 添加卡牌 ${this.selectedCard.name} 到牌组`);
+        } else {
+            console.log('RewardScene: 跳过卡牌奖励');
+        }
+
         // 保存游戏状态
-        this.stateManager.saveCurrentRun();
+        void this.runStateManager.saveCurrentRun();
 
         // 返回地图场景
         this.scene.start('MapScene');
+    }
+
+    /**
+     * 显示消息
+     */
+    private showMessage(message: string): void {
+        const messageText = this.add.text(
+            gameConfig.WIDTH / 2,
+            gameConfig.HEIGHT - 170,
+            message,
+            { fontSize: '20px', color: '#ffffff', backgroundColor: '#333333', padding: { x: 10, y: 5 } }
+        ).setOrigin(0.5);
+
+        // 3秒后消失
+        this.time.delayedCall(3000, () => {
+            messageText.destroy();
+        });
     }
 }
